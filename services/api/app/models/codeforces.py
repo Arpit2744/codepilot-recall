@@ -29,13 +29,17 @@ class CfAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A Codeforces handle linked to a user."""
 
     __tablename__ = "cf_accounts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "handle_lower", name="uq_cf_accounts_user_handle"),
+    )
 
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Codeforces preserves handle case for display; identity is case-insensitive.
+    # Codeforces handles are public data: multiple app users may track the
+    # same handle (ADR-0009). Uniqueness is per owning user.
     handle: Mapped[str] = mapped_column(String(24), nullable=False)
-    handle_lower: Mapped[str] = mapped_column(String(24), unique=True, nullable=False)
+    handle_lower: Mapped[str] = mapped_column(String(24), nullable=False)
 
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // Integrated auth specs need a live API; they run via playwright.auth.config.ts.
+  testIgnore: "e2e/auth/**",
   timeout: 30_000,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,

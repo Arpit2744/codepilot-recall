@@ -79,9 +79,34 @@ UTC-relabeled); ranges are capped at 731 days. The `reviews` heatmap mode
 returns `available: false` with an explanatory message until Phase 3 — review
 data is never fabricated as zeros.
 
-Phase 1 auth note: until Phase 5 ships real sessions, non-production requests
-identify the user via the `X-User-Id` header (see ADR-0004); production
-rejects user-data endpoints with 401. Cross-user access returns 404.
+Authentication (Phase 5, ADR-0008): all user-data endpoints resolve identity
+from the validated server-side session cookie. There is no `X-User-Id`
+fallback in any environment; missing/expired/revoked sessions are 401 and
+cross-user resources return 404 (no existence leak). State-changing requests
+must carry `X-CSRF-Token` (synchronizer token from `GET /auth/csrf`) and a
+trusted `Origin`/`Referer` when the client sends one.
+
+Auth endpoints:
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| POST | `/api/v1/auth/register` | 201 + session cookie + CSRF token; 409 duplicate email; 429 rate-limited (5/h/IP) |
+| POST | `/api/v1/auth/login` | 200 + cookie + CSRF; uniform 401 for unknown email / wrong password; 429 with `Retry-After` |
+| POST | `/api/v1/auth/logout` | 204; revokes the session server-side (CSRF required) |
+| GET  | `/api/v1/auth/me` | current user or 401 |
+| GET  | `/api/v1/auth/csrf` | mints the session's CSRF token (rotates) |
+| GET  | `/api/v1/auth/sessions` | active sessions metadata |
+| POST | `/api/v1/auth/sessions/revoke-all` | revokes every session (CSRF required) |
+
+Password storage: Argon2id (argon2-cffi 25.1.0; m=64MiB t=2 p=4 by default).
+Cookies: HttpOnly, SameSite=Lax, host-only; production adds Secure +
+`__Host-` prefix. Sessions: absolute 30d / inactivity 7d; only sha256
+digests of 256-bit tokens are stored. Email verification and password reset
+do not exist yet (no mail provider) and are deliberately not faked.
+
+Codeforces handle policy (ADR-0009): handles are public — any user may
+track the same handle; only re-linking by the SAME user conflicts (409).
+Quota: `max_linked_accounts` (default 5) per user.
 
 `GET /health` response:
 

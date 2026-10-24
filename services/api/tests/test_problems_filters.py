@@ -37,7 +37,7 @@ def seed_page():
 
 @pytest.fixture
 def seeded_user(auth_client, db_session):
-    user = auth_client.dev_user
+    user = auth_client.user
     account = repo.create_account(db_session, user_id=user.id, handle="tourist")
     run_historical(db_session, account, FakeClient(seed_page()))
     return user
@@ -128,9 +128,9 @@ def test_rejects_crossed_rating_bounds(auth_client, seeded_user):
     assert "rating_min" in resp.json()["error"]["message"]
 
 
-def test_cross_user_isolation(auth_client, seeded_user, make_user, db_session):
-    other = make_user("other@example.com")
-    own_account = repo.create_account(db_session, user_id=other.id, handle="second-user")
+def test_cross_user_isolation(auth_client, seeded_user, make_auth_client, db_session):
+    other = make_auth_client("other@example.com")
+    own_account = repo.create_account(db_session, user_id=other.user.id, handle="second-user")
     run_historical(
         db_session,
         own_account,
@@ -140,8 +140,6 @@ def test_cross_user_isolation(auth_client, seeded_user, make_user, db_session):
     mine = auth_client.get("/api/v1/problems?sort=name").json()
     assert mine["total"] == 5
 
-    theirs = auth_client.get(
-        "/api/v1/problems?sort=name", headers={"X-User-Id": str(other.id)}
-    ).json()
+    theirs = other.get("/api/v1/problems?sort=name").json()
     assert theirs["total"] == 1
     assert names(theirs) == ["Theatre Square"]

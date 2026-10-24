@@ -7,6 +7,7 @@
 | API     | `python -m pytest`             | unit + DB + migration tests   |
 | API     | `python -m ruff check .`       | lint                          |
 | Worker  | `python -m pytest`             | config + eager task execution |
+| Web (auth E2E) | `npx playwright test -c playwright.auth.config.ts` (apps/web; real API on :8000 required) | register/login/logout/two-user isolation |
 | Worker  | `python -m ruff check .`       | lint                          |
 | Web     | `npm run test` (apps/web)      | Vitest unit/component tests   |
 | Web     | `npm run lint`                 | ESLint (next/core-web-vitals) |

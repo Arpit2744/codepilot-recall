@@ -77,3 +77,39 @@ Rehearse this before real user data exists (Phase 5 exit criterion).
 - Scale workers with `docker compose up --scale worker=N` (Celery acks-late,
   prefetch 1 — safe for long sync jobs).
 - Schedule `pg_dump` backups off-box; test restores.
+
+
+## Phase 5: authentication operations
+
+- **HTTPS/proxy:** terminate TLS at the proxy; the app must receive
+  `X-Forwarded-Proto` only from a trusted proxy. **Rate-limit keys use the
+  socket peer address, not `X-Forwarded-For`** — behind a proxy all
+  browsers share one key unless you deploy a trusted-proxy-aware limiter;
+  that change must be explicit, not default.
+- **Cookies/CORS:** production serves `__Host-cpr_session` (Secure,
+  HttpOnly, SameSite=Lax, Path=/, no Domain). `CORS_ORIGINS` must list the
+  exact web origin(s); wildcard-with-credentials is never used.
+- **Secrets:** no token-signing secret exists (opaque tokens + sha256 at
+  rest); only the existing Postgres/Redis credentials and `ENVIRONMENT`.
+- **Session storage/expiry:** sessions live in `user_sessions`
+  (absolute 30d, inactivity 7d). Cleanup of expired/revoked rows can be a
+  scheduled `DELETE WHERE expires_at < now() OR revoked_at < now() - 30d`.
+- **Redis:** required in production for shared auth rate limiting. If
+  Redis is down, register/login answer 503 (fail closed) by design.
+- **Rate limits:** `RATE_LIMIT_REGISTER` (5/h/IP), `RATE_LIMIT_LOGIN_IP`
+  and `RATE_LIMIT_LOGIN_EMAIL` (10/15m each) — `events:window_seconds`.
+- **Migrations/startup:** the API container runs `alembic upgrade head`
+  before serving; revision `0005` adds sessions + shared handles.
+- **Log redaction:** structured JSON logs; auth audit events
+  (registration/login/logout/revocation/rate-limit) include user ids and
+  IPs only — never credentials, cookies, CSRF tokens, or hashes.
+- **Backup/restore:** rehearsed in CI (job `backup-restore`):
+  migrate → seed → `pg_dump -Fc` → restore into a fresh DB → verify schema
+  version `0005` + representative rows. The dump never enters artifacts.
+
+```bash
+# Manual equivalents
+docker compose exec postgres pg_dump -U codepilot -Fc codepilot > backup.dump
+docker compose exec -T postgres psql -U codepilot -c 'CREATE DATABASE codepilot_restore'
+cat backup.dump | docker compose exec -T postgres pg_restore -U codepilot -d codepilot_restore --no-owner
+```

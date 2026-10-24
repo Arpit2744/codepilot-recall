@@ -49,6 +49,12 @@ export default function HomePage() {
           >
             Open dashboard
           </Link>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-slate-400 underline-offset-2 transition-colors hover:text-slate-200 hover:underline"
+          >
+            Log in
+          </Link>
         </div>
       </header>
 

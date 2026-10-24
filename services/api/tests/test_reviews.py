@@ -24,7 +24,7 @@ P = cf_problem(1, "A", name="Theatre Square", rating=1000, tags=("math",))
 @pytest.fixture
 def seeded_problem_id(db_session, auth_client) -> uuid.UUID:
     """Dev user with one solved problem; returns the problems.id."""
-    user = auth_client.dev_user
+    user = auth_client.user
     account = cf_repo.create_account(db_session, user_id=user.id, handle="tourist")
     run_historical(db_session, account, FakeClient([[cf_item(1, T0, "OK", P)]]))
     problem_id = db_session.query(UserProblem).filter_by(user_id=user.id).one().problem_id
@@ -79,7 +79,7 @@ def test_outcome_and_independence_policy(
     resp = complete(auth_client, created["session"]["id"], outcome=outcome, independent=independent)
     assert resp.status_code == 200
 
-    rollup = db_session.query(UserProblem).filter_by(user_id=auth_client.dev_user.id).one()
+    rollup = db_session.query(UserProblem).filter_by(user_id=auth_client.user.id).one()
     assert rollup.independent_solve_verified is verified
 
 
@@ -144,18 +144,18 @@ def test_unknown_problem_and_session_return_404(auth_client, seeded_problem_id):
 
 
 def test_cross_user_isolation_without_existence_leak(
-    auth_client, seeded_problem_id, make_user, db_session
+    auth_client, seeded_problem_id, make_auth_client, db_session
 ):
     created = start(auth_client, seeded_problem_id)
-    other = make_user("intruder@example.com")
+    other = make_auth_client("intruder@example.com")
 
-    resp = auth_client.post(
+    resp = other.post(
         f"/api/v1/reviews/sessions/{created['session']['id']}/complete",
         json={"outcome": "good"},
-        headers={"X-User-Id": str(other.id)},
     )
     assert resp.status_code == 404  # same shape as unknown session
     assert resp.json()["error"]["code"] == "http_404"
+    assert other.get(f"/api/v1/reviews/sessions/{created['session']['id']}").status_code == 404
 
     # The original owner can still complete it.
     assert complete(auth_client, created["session"]["id"]).status_code == 200
@@ -167,7 +167,7 @@ def test_due_list_and_overdue_ordering(auth_client, db_session, seeded_problem_i
     created = start(auth_client, seeded_problem_id)
     service.complete_review(
         db_session,
-        user_id=auth_client.dev_user.id,
+        user_id=auth_client.user.id,
         session_id=uuid.UUID(created["session"]["id"]),
         outcome="good",
         independent=True,
@@ -216,7 +216,7 @@ def test_review_and_memory_rollback_together(
     with pytest.raises(RuntimeError):
         service.complete_review(
             db_session,
-            user_id=auth_client.dev_user.id,
+            user_id=auth_client.user.id,
             session_id=uuid.UUID(created["session"]["id"]),
             outcome="good",
             independent=True,
@@ -236,7 +236,7 @@ def test_state_survives_session_restart(db_session, auth_client, seeded_problem_
     created = start(auth_client, seeded_problem_id)
     service.complete_review(
         db_session,
-        user_id=auth_client.dev_user.id,
+        user_id=auth_client.user.id,
         session_id=uuid.UUID(created["session"]["id"]),
         outcome="good",
         independent=True,
@@ -256,11 +256,11 @@ def test_state_survives_session_restart(db_session, auth_client, seeded_problem_
 
         # A later review through the restarted session continues the state.
         review2 = service.start_review(
-            fresh, user_id=auth_client.dev_user.id, problem_id=seeded_problem_id
+            fresh, user_id=auth_client.user.id, problem_id=seeded_problem_id
         )
         service.complete_review(
             fresh,
-            user_id=auth_client.dev_user.id,
+            user_id=auth_client.user.id,
             session_id=review2.id,
             outcome="easy",
             independent=True,
@@ -299,7 +299,7 @@ def test_corrupt_memory_state_never_silently_reset(auth_client, db_session, seed
 def test_overdue_again_shortens_vs_easy_path(auth_client, db_session, seeded_problem_id):
     """Again on a graduated card must NOT push the due date further out."""
     now = datetime(2026, 10, 24, 12, 0, tzinfo=UTC)
-    user_id = auth_client.dev_user.id
+    user_id = auth_client.user.id
 
     s1 = service.start_review(db_session, user_id=user_id, problem_id=seeded_problem_id)
     service.complete_review(db_session, user_id=user_id, session_id=s1.id, outcome="good",
@@ -333,11 +333,11 @@ def test_reviews_heatmap_counts_completed_sessions_by_local_date(
     completed_at = datetime(2026, 10, 24, 23, 30, tzinfo=UTC)  # UTC-midnight boundary
     for _i in range(2):
         review = service.start_review(
-            db_session, user_id=auth_client.dev_user.id, problem_id=seeded_problem_id
+            db_session, user_id=auth_client.user.id, problem_id=seeded_problem_id
         )
         service.complete_review(
             db_session,
-            user_id=auth_client.dev_user.id,
+            user_id=auth_client.user.id,
             session_id=review.id,
             outcome="good",
             independent=True,
@@ -347,7 +347,7 @@ def test_reviews_heatmap_counts_completed_sessions_by_local_date(
             now=completed_at,
         )
     # A started-but-never-completed session must not count.
-    service.start_review(db_session, user_id=auth_client.dev_user.id, problem_id=seeded_problem_id)
+    service.start_review(db_session, user_id=auth_client.user.id, problem_id=seeded_problem_id)
 
     utc = auth_client.get(
         "/api/v1/dashboard/heatmap?from=2026-10-24&to=2026-10-24&timezone=UTC&mode=reviews"
@@ -363,11 +363,10 @@ def test_reviews_heatmap_counts_completed_sessions_by_local_date(
     assert kolkata["days"][0]["count"] == 2
 
 
-def test_reviews_heatmap_zero_when_no_sessions(auth_client, make_user):
-    other = make_user("quiet@example.com")
-    body = auth_client.get(
-        "/api/v1/dashboard/heatmap?from=2026-10-01&to=2026-10-05&timezone=UTC&mode=reviews",
-        headers={"X-User-Id": str(other.id)},
+def test_reviews_heatmap_zero_when_no_sessions(make_auth_client):
+    fresh = make_auth_client("quiet@example.com")
+    body = fresh.get(
+        "/api/v1/dashboard/heatmap?from=2026-10-01&to=2026-10-05&timezone=UTC&mode=reviews"
     ).json()
     assert body["available"] is True
     assert [d["count"] for d in body["days"]] == [0, 0, 0, 0, 0]

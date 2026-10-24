@@ -9,22 +9,13 @@ import type {
 } from "@codepilot/contracts";
 import { apiFetch } from "@/lib/api";
 
-function devHeaders(userId: string): HeadersInit {
-  return { "X-User-Id": userId };
-}
-
-export function getDashboardSummary(
-  userId: string,
-  timezone: string,
-): Promise<DashboardSummaryResponse> {
+export function getDashboardSummary(timezone: string): Promise<DashboardSummaryResponse> {
   return apiFetch<DashboardSummaryResponse>(
     `/api/v1/dashboard/summary?timezone=${encodeURIComponent(timezone)}`,
-    { headers: devHeaders(userId) },
   );
 }
 
 export function getHeatmap(
-  userId: string,
   params: { from: string; to: string; timezone: string; mode: HeatmapMode },
 ): Promise<HeatmapResponse> {
   const query = new URLSearchParams({
@@ -33,13 +24,10 @@ export function getHeatmap(
     timezone: params.timezone,
     mode: params.mode,
   });
-  return apiFetch<HeatmapResponse>(`/api/v1/dashboard/heatmap?${query}`, {
-    headers: devHeaders(userId),
-  });
+  return apiFetch<HeatmapResponse>(`/api/v1/dashboard/heatmap?${query}`);
 }
 
 export function listSolvedProblemsFiltered(
-  userId: string,
   filters: ProblemFilters,
 ): Promise<SolvedProblemListResponse> {
   const query = new URLSearchParams();
@@ -51,7 +39,5 @@ export function listSolvedProblemsFiltered(
   if (filters.order) query.set("order", filters.order);
   query.set("page", String(filters.page ?? 1));
   query.set("page_size", String(filters.page_size ?? 20));
-  return apiFetch<SolvedProblemListResponse>(`/api/v1/problems?${query}`, {
-    headers: devHeaders(userId),
-  });
+  return apiFetch<SolvedProblemListResponse>(`/api/v1/problems?${query}`);
 }

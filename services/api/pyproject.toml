@@ -16,6 +16,10 @@ dependencies = [
     # FSRS spaced-repetition scheduler (Phase 3); API verified against the
     # installed 6.3.2 — see app/integrations/fsrs/adapter.py.
     "fsrs==6.3.2",
+    # Argon2id password hashing (Phase 5); parameters benchmarked
+    # (~120ms at m=64MiB t=2 p=4 on the reference machine) and configurable
+    # via Settings for CI/test runtime.
+    "argon2-cffi==25.1.0",
 ]
 
 [project.optional-dependencies]

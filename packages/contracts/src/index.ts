@@ -291,3 +291,42 @@ export interface ReviewDueListResponse {
   mode: "due" | "upcoming";
   items: ReviewDueItem[] | ReviewUpcomingItem[];
 }
+
+// ---------------------------------------------------------------------------
+// Authentication (Phase 5)
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  display_name?: string | null;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  csrf_token: string;
+}
+
+export interface CsrfResponse {
+  csrf_token: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  issued_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  created_via: string;
+  current: boolean;
+}

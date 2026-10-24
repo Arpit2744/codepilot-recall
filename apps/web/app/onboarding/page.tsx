@@ -8,15 +8,16 @@ import { SolvedList } from "@/components/codeforces/solved-list";
 import { SyncPanel } from "@/components/codeforces/sync-panel";
 import { Button } from "@/components/ui/button";
 import { getSyncStatus, listAccounts, listSolvedProblems, triggerSync } from "@/lib/codeforces";
-import { ensureDevUser } from "@/lib/dev-user";
+import { bootstrapSession, type SessionState } from "@/lib/auth";
 
-type DevUserState =
+type SessionPageState =
   | { phase: "loading" }
-  | { phase: "error" }
+  | { phase: "anon" }
+  | { phase: "unreachable" }
   | { phase: "ready"; userId: string };
 
 export default function OnboardingPage() {
-  const [devUser, setDevUser] = useState<DevUserState>({ phase: "loading" });
+  const [devUser, setDevUser] = useState<SessionPageState>({ phase: "loading" });
   const [accountId, setAccountId] = useState<string | null>(null);
   const [status, setStatus] = useState<SyncStatusResponse | null>(null);
   const [problems, setProblems] = useState<SolvedProblemListResponse | null>(null);
@@ -25,9 +26,13 @@ export default function OnboardingPage() {
   // --- dev user bootstrap ---------------------------------------------
   useEffect(() => {
     let cancelled = false;
-    ensureDevUser().then((userId) => {
+    bootstrapSession().then((state: SessionState) => {
       if (cancelled) return;
-      setDevUser(userId ? { phase: "ready", userId } : { phase: "error" });
+      if (state.phase === "auth") {
+        setDevUser({ phase: "ready", userId: state.user.id });
+      } else {
+        setDevUser({ phase: state.phase }); // anon | unreachable
+      }
     });
     return () => {
       cancelled = true;
@@ -39,12 +44,12 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (devUser.phase !== "ready") return;
     let cancelled = false;
-    listAccounts(devUser.userId)
+    listAccounts()
       .then((accounts) => {
         if (!cancelled && accounts.length > 0) setAccountId(accounts[0].id);
       })
       .catch(() => {
-        /* API down: the dev-user banner already reports reachability. */
+        /* API down: the reachability banner reports it. */
       });
     return () => {
       cancelled = true;
@@ -52,13 +57,13 @@ export default function OnboardingPage() {
   }, [devUser]);
 
   // --- sync status polling + solved problems ---------------------------
-  const refreshStatus = useCallback(async (userId: string, id: string) => {
+  const refreshStatus = useCallback(async (id: string) => {
     try {
-      const next = await getSyncStatus(userId, id);
+      const next = await getSyncStatus(id);
       setStatus(next);
       const latest = next.latest_jobs[0];
       if (latest?.status === "succeeded") {
-        setProblems(await listSolvedProblems(userId));
+        setProblems(await listSolvedProblems());
       }
     } catch {
       /* transient poll failure: next tick retries */
@@ -67,8 +72,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (devUser.phase !== "ready" || !accountId) return;
-    const { userId } = devUser;
-    const poll = () => refreshStatus(userId, accountId);
+    const poll = () => refreshStatus(accountId);
     // First poll deferred a tick so no setState runs synchronously in the effect.
     const first = setTimeout(poll, 0);
     const timer = setInterval(poll, 3000);
@@ -82,8 +86,8 @@ export default function OnboardingPage() {
     if (devUser.phase !== "ready" || !accountId) return;
     setSyncing(true);
     try {
-      await triggerSync(devUser.userId, accountId);
-      await refreshStatus(devUser.userId, accountId);
+      await triggerSync(accountId);
+      await refreshStatus(accountId);
     } finally {
       setSyncing(false);
     }
@@ -108,7 +112,30 @@ export default function OnboardingPage() {
         </p>
       ) : null}
 
-      {devUser.phase === "error" ? (
+      {devUser.phase === "anon" ? (
+        <section className="flex flex-col items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+          <h2 className="text-lg font-semibold">Log in to connect a handle</h2>
+          <p className="text-sm text-slate-400">
+            Create an account or log in to link your Codeforces handle.
+          </p>
+          <div className="flex gap-2">
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+            >
+              Log in
+            </a>
+            <a
+              href="/register"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700"
+            >
+              Create account
+            </a>
+          </div>
+        </section>
+      ) : null}
+
+      {devUser.phase === "unreachable" ? (
         <section
           role="alert"
           className="flex flex-col gap-3 rounded-xl border border-rose-900/60 bg-rose-950/40 p-5"
@@ -129,7 +156,6 @@ export default function OnboardingPage() {
         <>
           {!accountId ? (
             <ConnectForm
-              userId={devUser.userId}
               onConnected={(result) => setAccountId(result.account.id)}
             />
           ) : (

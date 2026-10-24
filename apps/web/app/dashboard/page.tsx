@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   DashboardSummaryResponse,
@@ -18,7 +19,7 @@ import {
   getHeatmap,
   listSolvedProblemsFiltered,
 } from "@/lib/dashboard";
-import { ensureDevUser } from "@/lib/dev-user";
+import { bootstrapSession, logout, type SessionState } from "@/lib/auth";
 
 const HEATMAP_DAYS = 182;
 const CURATED_TIMEZONES = [
@@ -31,10 +32,11 @@ const CURATED_TIMEZONES = [
   "America/Los_Angeles",
 ];
 
-type DevUserState =
+type SessionPageState =
   | { phase: "loading" }
-  | { phase: "error" }
-  | { phase: "ready"; userId: string };
+  | { phase: "anon" }
+  | { phase: "unreachable" }
+  | { phase: "ready"; displayName: string };
 
 function localDateIn(tz: string, offsetDays = 0): string {
   const ms = Date.now() + offsetDays * 86_400_000;
@@ -44,7 +46,8 @@ function localDateIn(tz: string, offsetDays = 0): string {
 }
 
 export default function DashboardPage() {
-  const [devUser, setDevUser] = useState<DevUserState>({ phase: "loading" });
+  const router = useRouter();
+  const [devUser, setDevUser] = useState<SessionPageState>({ phase: "loading" });
   // "none" is a real empty state; "error" means we do not know (API down) —
   // never conflate the two.
   const [accountGate, setAccountGate] = useState<"loading" | "none" | "error" | "has">("loading");
@@ -74,9 +77,13 @@ export default function DashboardPage() {
   // --- dev session bootstrap ------------------------------------------
   useEffect(() => {
     let cancelled = false;
-    ensureDevUser().then((userId) => {
+    bootstrapSession().then((state: SessionState) => {
       if (cancelled) return;
-      setDevUser(userId ? { phase: "ready", userId } : { phase: "error" });
+      if (state.phase === "auth") {
+        setDevUser({ phase: "ready", displayName: state.user.display_name });
+      } else {
+        setDevUser({ phase: state.phase });
+      }
     });
     return () => {
       cancelled = true;
@@ -86,7 +93,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (devUser.phase !== "ready") return;
     let cancelled = false;
-    listAccounts(devUser.userId)
+    listAccounts()
       .then((accounts) => {
         if (!cancelled) setAccountGate(accounts.length > 0 ? "has" : "none");
       })
@@ -99,12 +106,11 @@ export default function DashboardPage() {
   }, [devUser]);
 
   // --- summary + heatmap -----------------------------------------------
-  const loadOverview = useCallback(
-    async (userId: string) => {
+  const loadOverview = useCallback(async () => {
       try {
-        setSummary(await getDashboardSummary(userId, timezone));
+        setSummary(await getDashboardSummary(timezone));
         setHeatmap(
-          await getHeatmap(userId, {
+          await getHeatmap({
             from: localDateIn(timezone, -(HEATMAP_DAYS - 1)),
             to: localDateIn(timezone),
             timezone,
@@ -115,9 +121,7 @@ export default function DashboardPage() {
         setSummary(null);
         setHeatmap(null);
       }
-    },
-    [timezone, mode],
-  );
+  }, [timezone, mode]);
 
   // Load the overview when an account exists OR when we could not tell
   // (outage): each section then reports its own honest unavailable state.
@@ -125,18 +129,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (devUser.phase !== "ready" || !showDashboard) return;
-    const timer = setTimeout(() => loadOverview(devUser.userId), 0);
+    const timer = setTimeout(() => loadOverview(), 0);
     return () => clearTimeout(timer);
   }, [devUser, showDashboard, loadOverview]);
 
   // --- table with debounced filters ------------------------------------
   useEffect(() => {
     if (devUser.phase !== "ready" || !showDashboard) return;
-    const { userId } = devUser;
     let cancelled = false;
     const timer = setTimeout(() => {
       setTableLoading(true);
-      listSolvedProblemsFiltered(userId, {
+      listSolvedProblemsFiltered({
         search: tableState.search || undefined,
         tag: tableState.tag || undefined,
         rating_min: tableState.ratingMin ? Number(tableState.ratingMin) : undefined,
@@ -198,6 +201,18 @@ export default function DashboardPage() {
           >
             Review queue
           </Link>
+          <span className="hidden text-sm text-slate-500 sm:inline">
+            {devUser.phase === "ready" ? devUser.displayName : ""}
+          </span>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              await logout();
+              router.push("/login");
+            }}
+          >
+            Log out
+          </Button>
           <Link
             href="/onboarding"
             className="text-sm text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
@@ -213,7 +228,22 @@ export default function DashboardPage() {
         </p>
       ) : null}
 
-      {devUser.phase === "error" ? (
+      {devUser.phase === "anon" ? (
+        <section className="flex flex-col items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+          <h2 className="text-lg font-semibold">Log in to see your dashboard</h2>
+          <p className="text-sm text-slate-400">
+            Your activity, heatmap, and reviews are tied to your account.
+          </p>
+          <a
+            href="/login"
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+          >
+            Log in
+          </a>
+        </section>
+      ) : null}
+
+      {devUser.phase === "unreachable" ? (
         <section role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-900/60 bg-rose-950/40 p-5">
           <p className="text-sm text-rose-200">
             Could not reach the API. Start the backend (uvicorn on port 8000) and

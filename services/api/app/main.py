@@ -94,6 +94,7 @@ def create_app() -> FastAPI:
                     "details": None,
                 }
             },
+            headers=getattr(exc, "headers", None) or {},  # e.g. Retry-After
         )
 
     @app.exception_handler(Exception)

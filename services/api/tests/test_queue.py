@@ -164,7 +164,7 @@ def test_retrievability_consistent_after_restoration():
 
 @pytest.fixture
 def seeded_user(auth_client, db_session):
-    user = auth_client.dev_user
+    user = auth_client.user
     account = cf_repo.create_account(db_session, user_id=user.id, handle="tourist")
     run_historical(
         db_session,
@@ -247,13 +247,11 @@ def test_queue_limit_is_bounded(auth_client, db_session, seeded_user):
     assert len(body["items"]) == 2
 
 
-def test_queue_user_isolation(auth_client, db_session, seeded_user, make_user):
+def test_queue_user_isolation(auth_client, db_session, seeded_user, make_auth_client):
     user, _ = seeded_user
     _force_due(db_session, user.id, {"a": (2, 5.0), "b": (3, 5.0), "c": (4, 5.0)})
-    other = make_user("queueless@example.com")
-    body = auth_client.get(
-        "/api/v1/reviews/due", headers={"X-User-Id": str(other.id)}
-    ).json()
+    fresh = make_auth_client("queueless@example.com")
+    body = fresh.get("/api/v1/reviews/due").json()
     assert body["items"] == []
 
 

@@ -29,11 +29,12 @@ const RISK_STYLES: Record<string, string> = {
 };
 import { Button } from "@/components/ui/button";
 import { listDueReviews, startReview, completeReview, ApiError } from "@/lib/reviews";
-import { ensureDevUser } from "@/lib/dev-user";
+import { bootstrapSession, type SessionState } from "@/lib/auth";
 
-type DevUserState =
+type SessionPageState =
   | { phase: "loading" }
-  | { phase: "error" }
+  | { phase: "anon" }
+  | { phase: "unreachable" }
   | { phase: "ready"; userId: string };
 
 const OUTCOMES = [
@@ -46,7 +47,7 @@ const OUTCOMES = [
 type OutcomeKey = (typeof OUTCOMES)[number]["key"];
 
 export default function ReviewPage() {
-  const [devUser, setDevUser] = useState<DevUserState>({ phase: "loading" });
+  const [devUser, setDevUser] = useState<SessionPageState>({ phase: "loading" });
   const [queueItems, setQueueItems] = useState<QueueItem[] | null>(null);
   const [queueMode, setQueueMode] = useState<"due" | "upcoming">("due");
   const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
@@ -59,27 +60,28 @@ export default function ReviewPage() {
 
   useEffect(() => {
     let cancelled = false;
-    ensureDevUser().then((userId) => {
+    bootstrapSession().then((state: SessionState) => {
       if (cancelled) return;
-      setDevUser(userId ? { phase: "ready", userId } : { phase: "error" });
+      if (state.phase === "auth") {
+        setDevUser({ phase: "ready", userId: state.user.id });
+      } else {
+        setDevUser({ phase: state.phase });
+      }
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const refreshQueue = useCallback(
-    async (userId: string, mode: "due" | "upcoming") => {
-      try {
-        setQueueItems((await listDueReviews(userId, mode)).items);
-        return true;
-      } catch {
-        setQueueItems(null);
-        return false;
-      }
-    },
-    [],
-  );
+  const refreshQueue = useCallback(async (mode: "due" | "upcoming") => {
+    try {
+      setQueueItems((await listDueReviews(mode)).items);
+      return true;
+    } catch {
+      setQueueItems(null);
+      return false;
+    }
+  }, []);
 
   // Deep link support: /review?problem=<id> starts a review for one
   // solved problem (the dashboard table links here). Read via
@@ -88,35 +90,35 @@ export default function ReviewPage() {
     if (devUser.phase !== "ready" || active || result) return;
     const problemId = new URLSearchParams(window.location.search).get("problem");
     if (problemId) {
-      begin(devUser.userId, problemId);
+      begin(problemId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devUser]);
 
   useEffect(() => {
     if (devUser.phase !== "ready") return;
-    const timer = setTimeout(() => refreshQueue(devUser.userId, queueMode), 0);
+    const timer = setTimeout(() => refreshQueue(queueMode), 0);
     return () => clearTimeout(timer);
   }, [devUser, queueMode, refreshQueue]);
 
-  async function begin(userId: string, problemId: string) {
+  async function begin(problemId: string) {
     setError(null);
     setConflict(false);
     setResult(null);
     setHelpLevel("none");
     try {
-      setActive(await startReview(userId, { problem_id: problemId }));
+      setActive(await startReview({ problem_id: problemId }));
     } catch (exc) {
       setError(exc instanceof ApiError ? exc.message : "Could not start the review.");
     }
   }
 
-  async function submit(userId: string, sessionId: string, outcome: OutcomeKey) {
+  async function submit(sessionId: string, outcome: OutcomeKey) {
     setSubmitting(outcome);
     setError(null);
     setConflict(false);
     try {
-      const response = await completeReview(userId, sessionId, {
+      const response = await completeReview(sessionId, {
         outcome,
         independent: helpLevel === "none" ? true : false,
         help_level: helpLevel,
@@ -125,7 +127,7 @@ export default function ReviewPage() {
       setActive(null);
       // Server-confirmed completion: refresh the queue immediately and
       // report honestly if the refresh itself fails.
-      const refreshed = await refreshQueue(userId, "due");
+      const refreshed = await refreshQueue("due");
       setQueueMode("due");
       setRefreshWarning(
         refreshed
@@ -175,7 +177,22 @@ export default function ReviewPage() {
         </p>
       ) : null}
 
-      {devUser.phase === "error" ? (
+      {devUser.phase === "anon" ? (
+        <section className="flex flex-col items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+          <h2 className="text-lg font-semibold">Log in to review</h2>
+          <p className="text-sm text-slate-400">
+            Your review queue and memory schedule live in your account.
+          </p>
+          <a
+            href="/login"
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+          >
+            Log in
+          </a>
+        </section>
+      ) : null}
+
+      {devUser.phase === "unreachable" ? (
         <section role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-900/60 bg-rose-950/40 p-5">
           <p className="text-sm text-rose-200">
             Could not reach the API. Start the backend (uvicorn on port 8000) and
@@ -249,7 +266,7 @@ export default function ReviewPage() {
                   key={outcome.key}
                   variant={outcome.key === "good" ? "primary" : "secondary"}
                   disabled={submitting !== null}
-                  onClick={() => submit(devUser.userId, active.session.id, outcome.key)}
+                  onClick={() => submit(active.session.id, outcome.key)}
                 >
                   {submitting === outcome.key ? "Submitting…" : outcome.label}
                   <span className="sr-only"> — {outcome.hint}</span>
@@ -380,7 +397,7 @@ export default function ReviewPage() {
                         ) : null}
                       </p>
                     </div>
-                    <Button onClick={() => begin(devUser.userId, item.problem.id)}>
+                    <Button onClick={() => begin(item.problem.id)}>
                       Start review
                     </Button>
                   </li>

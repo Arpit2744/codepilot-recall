@@ -1,5 +1,6 @@
 """All ORM models; imported as a unit so Base.metadata is complete."""
 
+from app.models.auth import UserSession
 from app.models.base import Base
 from app.models.codeforces import CfAccount, Problem, Submission, SyncJob, UserProblem
 from app.models.reviews import HELP_LEVELS, REVIEW_OUTCOMES, MemoryState, ReviewSession
@@ -17,4 +18,5 @@ __all__ = [
     "SyncJob",
     "User",
     "UserProblem",
+    "UserSession",
 ]

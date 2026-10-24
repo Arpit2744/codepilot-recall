@@ -123,15 +123,61 @@ rejected ✓; state survives restarts ✓; remote CI run closes the phase.
 **Exit**: queue matches stored scheduler state; failures never corrupt
 memory history.
 
-## PHASE 5 — Multi-user hardening
+## PHASE 5 — Authentication & hardening ✅ (code complete; CI pending push)
 
-- [ ] Auth (register/login/sessions, password hashing), CSRF, rate limits
-- [ ] Handle linking policy + optional safe ownership verification
-- [ ] Cross-user isolation tests; quotas; observability; backup/restore
-      rehearsal; deployment config; e2e tests
+- [x] Argon2id via pinned `argon2-cffi==25.1.0` (API introspected,
+      benchmarked ~120ms at m=64MiB/t=2/p=4; parameters in Settings) —
+      ADR-0008. No plaintext/fast hashes; hashes never logged or returned.
+- [x] `POST /auth/register|login|logout`, `GET /auth/me|csrf|sessions`,
+      `POST /auth/sessions/revoke-all`. Email normalization + safe
+      concurrent uniqueness (IntegrityError → 409); uniform login failure
+      with timing-equalizing dummy verify (no enumeration).
+- [x] Server-side sessions (migration `0005`): 256-bit opaque tokens,
+      sha256-at-rest, absolute 30d + inactivity 7d, revocation timestamps,
+      CSRF-token hash per session. Cookies HttpOnly/SameSite=Lax/Path=/;
+      production adds Secure + `__Host-` prefix (fail closed).
+- [x] CSRF synchronizer token on every mutation (`X-CSRF-Token`,
+      compare_digest) + Origin/Referer validation; login/register covered
+      by the origin policy. GET/HEAD never mutate.
+- [x] `X-User-Id` identity REMOVED everywhere (dependency rewritten; dev
+      bootstrap route deleted; frontend uses cookie sessions only).
+      Dev-era users keep their data and can never log in (ADR-0008).
+- [x] Shared Redis rate limiting (register/login IP + email) with
+      fail-closed 503 in production, in-process fallback elsewhere;
+      429 + Retry-After; trusted-proxy stance documented (socket peer IP).
+- [x] Handle policy: public handles shareable across users (ADR-0009;
+      migration to UNIQUE(user_id, handle_lower); concurrent-link test) +
+      per-user linked-account quota (default 5).
+- [x] Audit events (registration/login/logout/revocation/rate-limit) via
+      structured JSON logs — no credentials/tokens.
+- [x] Frontend: /login + /register, cookie bootstrap via /auth/me, logout,
+      CSRF handled inside the shared fetch wrapper (auto-acquire + one
+      rotate-retry), 401→login CTA, 409/429 surfaced safely; no bearer
+      tokens in localStorage/URLs.
+- [x] Backup/restore rehearsal scripts + CI job (`backup-restore`):
+  migrate → seed → pg_dump → restore to fresh DB → verify schema `0005`
+  and representative rows; dump kept out of artifacts.
+- [x] Integrated auth E2E (CI job `e2e-auth` + local): register →
+      onboarding → dashboard survives reload → logout invalidates; second
+      user onboards independently with a shared handle and isolated data;
+      wrong-password shows the uniform error.
+- [x] **VERIFIED LOCALLY (executed)**: API pytest **190/190** (34 new
+      auth-security tests: Argon2 verification, cookie flags, session
+      expiry/inactivity/revocation/tamper, CSRF matrix incl. rotation +
+      referer fallback + non-browser, rate limits incl. window reset +
+      Redis-outage fail-closed/degrade, production `__Host-` cookie,
+      enumeration parity, dev-bootstrap gone, handle sharing, quota) ·
+      worker 9/9 · ruff both · alembic 0005 upgrade/drift/downgrade clean ·
+      eslint · tsc · vitest **31/31** · `next build` · standard Playwright
+      8/8 · integrated auth Playwright **3/3** against a live API
+- [ ] GitHub Actions run for the Phase 5 commit (6 jobs incl.
+      backup-restore + e2e-auth) — pending push
 
-**Exit**: second user onboards independently; all cross-user access tests
-pass.
+**Exit criteria**: session auth replaces the dev header ✓ (no fallback
+anywhere); cross-user isolation green across endpoints ✓; rate limits and
+operational safeguards tested ✓; backup/restore rehearsed ✓ (CI job
+pending); remote CI run closes the phase. Not claimed: security audit,
+email verification, password reset (documented as deferred).
 
 ## PHASE 6 — Beta release
 

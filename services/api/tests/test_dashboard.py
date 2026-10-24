@@ -42,7 +42,7 @@ def seed_page():
 @pytest.fixture
 def seeded_user(auth_client, db_session):
     """Dev user with one account and the canonical fixture history."""
-    user = auth_client.dev_user
+    user = auth_client.user
     repo.create_account(db_session, user_id=user.id, handle="tourist")
     from tests.test_importer import FakeClient as FC
 
@@ -120,10 +120,9 @@ def test_older_first_solve_discovered_on_resync(auth_client, seeded_user, db_ses
     assert sum(discovered.values()) == 3
 
 
-def test_summary_empty_user(auth_client, make_user):
-    other = make_user("empty@example.com")
-    auth_client.headers.update({"X-User-Id": str(other.id)})
-    body = auth_client.get("/api/v1/dashboard/summary?timezone=UTC").json()
+def test_summary_empty_user(make_auth_client):
+    fresh = make_auth_client("empty@example.com")
+    body = fresh.get("/api/v1/dashboard/summary?timezone=UTC").json()
     assert body["totals"] == {"submissions": 0, "solved_problems": 0}
     assert body["accounts"] == []
     assert body["current_streak_days"] == 0
@@ -145,11 +144,9 @@ def test_summary_streak_counts_recent_activity(auth_client, seeded_user, db_sess
     assert body["current_streak_days"] >= 1
 
 
-def test_summary_isolated_across_users(auth_client, seeded_user, make_user):
-    other = make_user("solo@example.com")
-    resp = auth_client.get(
-        "/api/v1/dashboard/summary?timezone=UTC", headers={"X-User-Id": str(other.id)}
-    )
+def test_summary_isolated_across_users(auth_client, seeded_user, make_auth_client):
+    other_client = make_auth_client("solo@example.com")
+    resp = other_client.get("/api/v1/dashboard/summary?timezone=UTC")
     assert resp.json()["totals"] == {"submissions": 0, "solved_problems": 0}
 
 
@@ -231,11 +228,10 @@ def test_heatmap_reviews_mode_available_with_zero_counts(auth_client, seeded_use
     assert body["max_count"] == 0
 
 
-def test_heatmap_isolated_across_users(auth_client, seeded_user, make_user):
-    other = make_user("quiet@example.com")
-    body = auth_client.get(
-        "/api/v1/dashboard/heatmap?from=2024-05-01&to=2024-05-03&timezone=UTC",
-        headers={"X-User-Id": str(other.id)},
+def test_heatmap_isolated_across_users(auth_client, seeded_user, make_auth_client):
+    other_client = make_auth_client("quiet@example.com")
+    body = other_client.get(
+        "/api/v1/dashboard/heatmap?from=2024-05-01&to=2024-05-03&timezone=UTC"
     ).json()
     assert all(d["count"] == 0 for d in body["days"])
 

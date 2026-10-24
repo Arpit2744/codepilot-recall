@@ -30,6 +30,26 @@ class Settings(BaseSettings):
     # crashes on plain "http://localhost:3000" values).
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
+    # --- Authentication & sessions (Phase 5) ---
+    # Argon2id parameters: OWASP-recommended class, ~120ms on the reference
+    # machine. Configurable so CI/tests can use faster-but-identical-code
+    # variants without weakening production defaults.
+    argon2_time_cost: int = 2
+    argon2_memory_cost: int = 65536
+    argon2_parallelism: int = 4
+    # Absolute and inactivity session lifetimes (seconds).
+    session_absolute_seconds: int = 30 * 86_400
+    session_inactivity_seconds: int = 7 * 86_400
+    # Rate limits: "events:window_seconds" per key.
+    rate_limit_register: str = "5:3600"
+    rate_limit_login_ip: str = "10:900"
+    rate_limit_login_email: str = "10:900"
+    # Resource quota: linked Codeforces accounts per user.
+    max_linked_accounts: int = 5
+    # Fail closed for auth endpoints when the shared Redis limiter is down
+    # (never silently degrade to per-process limits in production).
+    rate_limit_fail_closed: bool = True
+
     # Codeforces integration knobs (used from Phase 1 onwards).
     cf_api_base_url: str = "https://codeforces.com/api"
     cf_request_interval_seconds: float = 2.5

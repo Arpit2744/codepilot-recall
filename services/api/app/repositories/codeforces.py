@@ -21,8 +21,13 @@ def create_account(db: Session, *, user_id: uuid.UUID, handle: str) -> CfAccount
     return account
 
 
-def find_account_by_handle(db: Session, handle: str) -> CfAccount | None:
-    return db.scalar(select(CfAccount).where(CfAccount.handle_lower == handle.lower()))
+def get_account_by_handle(db: Session, *, user_id: uuid.UUID, handle: str) -> CfAccount | None:
+    """This user's account for a handle, if linked (handles are shareable)."""
+    return db.scalar(
+        select(CfAccount).where(
+            CfAccount.user_id == user_id, CfAccount.handle_lower == handle.lower()
+        )
+    )
 
 
 def get_account(db: Session, *, user_id: uuid.UUID, account_id: uuid.UUID) -> CfAccount | None:

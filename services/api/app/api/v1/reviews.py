@@ -3,10 +3,10 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id
+from app.api.deps import get_current_user_id, require_csrf, validate_browser_origin
 from app.core.db import get_db
 from app.models import MemoryState, Problem, ReviewSession, UserProblem
 from app.repositories import reviews as repo
@@ -81,9 +81,11 @@ def _load_context(
 @router.post("/sessions", response_model=ReviewSessionResponse, status_code=201)
 def start_review(
     payload: StartReviewRequest,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    request: Request,
+    user_id: Annotated[uuid.UUID, Depends(require_csrf)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    validate_browser_origin(request)
     try:
         review = service.start_review(db, user_id=user_id, problem_id=payload.problem_id)
     except service.ProblemNotSolved:
@@ -120,9 +122,11 @@ def get_review_session(
 def complete_review_session(
     session_id: uuid.UUID,
     payload: CompleteReviewRequest,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    request: Request,
+    user_id: Annotated[uuid.UUID, Depends(require_csrf)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    validate_browser_origin(request)
     try:
         review, memory = service.complete_review(
             db,

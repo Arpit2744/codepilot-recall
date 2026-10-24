@@ -48,6 +48,19 @@ solves moves `first_solved_at` earlier and the aggregates follow). Revision
 `submissions(cf_account_id, submitted_at)` and
 `user_problems(user_id, first_solved_at)`.
 
+### User sessions (revision `0005`, Phase 5)
+
+- **user_sessions** — server-side session store: `user_id` FK CASCADE,
+  UNIQUE `token_hash` (sha256 of a 256-bit opaque token; the raw token only
+  ever lives in the HttpOnly cookie), `csrf_token_hash`,
+  `issued_at`/`last_seen_at`/`expires_at`/`revoked_at`, minimal
+  `created_via`. Indexes: unique token lookup, (`user_id`, `revoked_at`)
+  for revoke-all, `expires_at` for cleanup.
+- The same migration moves `cf_accounts` from a global
+  `UNIQUE(handle_lower)` to `UNIQUE(user_id, handle_lower)` — handles are
+  shareable public data (ADR-0009). Existing rows and history are
+  preserved; dev-era users keep their data and can never log in.
+
 ### Review tables (revision `0004`, Phase 3)
 
 - **review_sessions** — one review attempt per row: `user_id` + `user_problem_id`

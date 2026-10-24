@@ -3,11 +3,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id
+from app.api.deps import get_current_user_id, require_csrf, validate_browser_origin
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.repositories import codeforces as repo
 from app.schemas.codeforces import (
@@ -60,22 +61,36 @@ def _owned_account(db: Session, user_id: uuid.UUID, account_id: uuid.UUID):
 @router.post("/accounts", response_model=AccountCreatedResponse, status_code=202)
 def create_account(
     payload: CreateAccountRequest,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    request: Request,
+    user_id: Annotated[uuid.UUID, Depends(require_csrf)],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Link a public Codeforces handle and queue the historical import.
 
-    The handle is validated against user.info by the worker; failures are
-    reported through sync status. We never request Codeforces credentials.
+    Handles are public data: any user may track the same handle (ADR-0009)
+    — a public username alone proves nothing about ownership, so linking
+    grants read-only tracking, never an exclusive claim. The handle is
+    validated against user.info by the worker; failures surface in sync
+    status. We never request Codeforces credentials.
     """
-    existing = repo.find_account_by_handle(db, payload.handle)
+    validate_browser_origin(request)
+    settings = get_settings()
+    if len(repo.list_accounts(db, user_id)) >= settings.max_linked_accounts:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Account limit reached (max {settings.max_linked_accounts} linked handles)",
+        )
+
+    # Conflict only when THIS user already tracks the handle.
+    existing = repo.get_account_by_handle(db, user_id=user_id, handle=payload.handle)
     if existing is not None:
-        raise HTTPException(status_code=409, detail="Handle is already linked")
+        raise HTTPException(status_code=409, detail="You have already linked this handle")
 
     try:
         account = repo.create_account(db, user_id=user_id, handle=payload.handle)
     except IntegrityError:
-        raise HTTPException(status_code=409, detail="Handle is already linked") from None
+        db.rollback()
+        raise HTTPException(status_code=409, detail="You have already linked this handle") from None
 
     job = repo.create_job(db, account_id=account.id, job_type="historical")
     queued = enqueue_sync(account.id, job.id)
@@ -95,10 +110,12 @@ def list_accounts(
 @router.post("/accounts/{account_id}/sync", response_model=SyncTriggerResponse, status_code=202)
 def trigger_sync(
     account_id: uuid.UUID,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    request: Request,
+    user_id: Annotated[uuid.UUID, Depends(require_csrf)],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Queue an incremental sync; returns the active job if one exists."""
+    validate_browser_origin(request)
     account = _owned_account(db, user_id, account_id)
 
     active = repo.get_active_job(db, account.id)

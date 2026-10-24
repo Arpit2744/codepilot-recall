@@ -58,20 +58,20 @@ cd services/worker
 Frontend: `npm install` at the repo root (workspace install,
 Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
 
-## Verification status (updated 2026-10-25, Phase 4 complete locally)
+## Verification status (updated 2026-10-25, Phase 5 complete locally)
 
 | Check                                   | Result                              |
 | --------------------------------------- | ----------------------------------- |
-| API `pytest` (155 tests: + queue urgency layer, retrievability risk) | **PASS** |
+| API `pytest` (190 tests: + Argon2 auth, sessions, CSRF, rate limits, handle sharing) | **PASS** |
 | API `ruff check`                        | **PASS**                            |
 | Worker `pytest` (9 tests)               | **PASS**                            |
 | Worker `ruff check`                     | **PASS**                            |
 | Alembic `0001→0003` upgrade → `check` → downgrade (SQLite) | **PASS** — no drift |
 | Web `eslint`                            | **PASS**                            |
-| Web `vitest` (25 tests incl. queue labels + refresh flows) | **PASS**             |
+| Web `vitest` (31 tests incl. auth pages + session states) | **PASS**               |
 | Web `next build` (`/`, `/onboarding`, `/dashboard` static) | **PASS**           |
-| Playwright e2e (Chromium, 8 tests incl. review page) | **PASS**           |
-| PostgreSQL 16 + Docker Compose smoke    | verified in CI: P1 40117225412, P2 40119818727, P3 40121991245 (`22ffefc`); Phase 4 run pending push |
+| Playwright e2e (Chromium, 8 tests) + integrated auth Playwright (3 tests, live API) | **PASS** |
+| PostgreSQL 16 + Docker Compose smoke    | verified in CI: P1 40117225412, P2 40119818727, P3 40121991245, P4 40123762388 (`3a9e879`); Phase 5 run pending push |
 | Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live import is manual/Phase 6 |
 
 Timezone-boundary tests: submissions near UTC midnight land on the correct
@@ -81,8 +81,10 @@ from canonical records).
 
 Known issues:
 
-- Dev auth boundary (ADR-0004): `X-User-Id` header in non-production;
-  production returns 401 until Phase 5. Not an authentication mechanism.
+- Email verification and password reset are deferred (no mail provider;
+  documented in ADR-0008) — not silently faked.
+- No professional security audit or penetration test has been performed;
+  green CI is necessary evidence, not proof of security.
 - Starlette TestClient deprecation warning re `httpx`/`httpx2` — cosmetic.
 
 ## Repository layout

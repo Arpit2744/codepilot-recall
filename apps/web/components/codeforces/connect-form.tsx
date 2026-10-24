@@ -9,10 +9,8 @@ import { Button } from "@/components/ui/button";
 const HANDLE_PATTERN = /^[A-Za-z0-9_.-]{1,24}$/;
 
 export function ConnectForm({
-  userId,
   onConnected,
 }: {
-  userId: string;
   onConnected: (result: AccountCreatedResponse) => void;
 }) {
   const [handle, setHandle] = useState("");
@@ -30,7 +28,7 @@ export function ConnectForm({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await createAccount(userId, { handle: trimmed });
+      const result = await createAccount({ handle: trimmed });
       onConnected(result);
     } catch (exc) {
       if (exc instanceof ApiError && exc.status === 409) {
