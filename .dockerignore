@@ -19,6 +19,7 @@ services/worker/.ruff_cache/**
 
 # --- Web service ---
 !package.json
+!package-lock.json
 !apps/web/**
 apps/web/node_modules/**
 apps/web/.next/**
