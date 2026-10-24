@@ -1,10 +1,10 @@
 """Application settings loaded from environment variables (12-factor style)."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -25,7 +25,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://codepilot:codepilot@localhost:5432/codepilot"
     redis_url: str = "redis://localhost:6379/0"
 
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # NoDecode: pass the raw comma-separated env string to the validator
+    # instead of letting pydantic-settings JSON-decode it first (which
+    # crashes on plain "http://localhost:3000" values).
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
     # Codeforces integration knobs (used from Phase 1 onwards).
     cf_api_base_url: str = "https://codeforces.com/api"
