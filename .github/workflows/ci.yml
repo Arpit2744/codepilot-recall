@@ -99,7 +99,7 @@ jobs:
       - name: Build web image
         run: docker build -f infra/docker/web.Dockerfile .
       - name: Start the stack
-        run: docker compose up -d
+        run: docker compose up -d --wait
       - name: Wait for API readiness (PostgreSQL + Alembic migrations)
         run: |
           for i in $(seq 1 30); do
@@ -109,11 +109,16 @@ jobs:
             sleep 5
           done
           echo "API never became ready"
-          docker compose ps || true
-          docker compose logs api || true
           exit 1
       - name: Web responds on :3000
-        run: test "$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3000)" = "200"
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:3000 || true)
+            if [ "$code" = "200" ]; then echo "web ready"; exit 0; fi
+            sleep 5
+          done
+          echo "web never returned 200 (last: $code)"
+          exit 1
       - name: Diagnostics (published as annotations)
         if: failure()
         run: |
