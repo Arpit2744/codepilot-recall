@@ -1,17 +1,22 @@
 # Web (Next.js) service image. Build context: repository root.
 # Node >=22.22.2 required by jsdom 30 / vitest 5 engines.
+#
+# npm workspaces hoist dependencies into the ROOT node_modules and symlink
+# workspace packages there (@codepilot/contracts -> packages/contracts);
+# apps/web/node_modules typically does not exist. The stages below copy the
+# root install and the workspace sources it links to — never a per-workspace
+# node_modules.
 
 FROM node:24-alpine AS deps
 WORKDIR /build
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/contracts/package.json packages/contracts/
-RUN npm install --workspace @codepilot/web --include-workspace-root
+RUN npm ci --no-fund --no-audit
 
 FROM node:24-alpine AS build
 WORKDIR /build
 COPY --from=deps /build/node_modules ./node_modules
-COPY --from=deps /build/apps/web/node_modules ./apps/web/node_modules
 COPY package.json ./
 COPY packages/contracts ./packages/contracts
 COPY apps/web ./apps/web
