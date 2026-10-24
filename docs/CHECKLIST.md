@@ -32,22 +32,38 @@ Phased plan with exit criteria. A phase is complete only when its checks
 passes") is **not yet fully met** — blocked on the Node/Docker items above,
 not on code.
 
-## PHASE 1 — Data ingestion (next)
+## PHASE 1 — Data ingestion ✅ (code complete; CI run pending push)
 
-- [ ] Codeforces client (`user.info`, `user.status`) with shared rate limiter,
-      retries with backoff + jitter, upstream-error handling
-- [ ] Canonical problem identity + normalization (verdicts, timestamps)
-- [ ] Tables: `cf_accounts`, `problems`, `submissions`, `user_problems`, `sync_jobs`
-      (Alembic revision)
-- [ ] Historical import + incremental sync + periodic reconciliation
-- [ ] Idempotent upserts; per-account locking; cursor persistence
-- [ ] `first_solved_at` derivation from earliest accepted submission
-- [ ] Mocked integration tests: accepted/rejected submissions, duplicates,
-      pagination, failures, retries, timestamp conversion
-- [ ] Sync job-status endpoint + manual sync trigger
+- [x] Codeforces client (`user.info`, `user.status`) — shared Redis rate
+      limiter (2.5 s default), bounded retries with backoff + jitter,
+      Retry-After honored, FAILED envelope never read as empty history
+- [x] Canonical problem identity + normalization (verdicts, UTC timestamps
+      from `creationTimeSeconds` only)
+- [x] Tables: `cf_accounts`, `problems`, `submissions`, `user_problems`,
+      `sync_jobs` (Alembic revision `0002`; drift guard green)
+- [x] Historical import (paged) + incremental sync (known-page stop with
+      verdict-refresh overlap) + stale-job recovery + due-account dispatcher
+      on the existing beat interval
+- [x] Idempotent upserts (unique account+source id); per-account locking
+      (`FOR UPDATE`) + atomic job claim; cursor only set on full success
+- [x] `first_solved_at` = earliest accepted submission, min-semantics
+- [x] Endpoints: link handle / list accounts / trigger sync (duplicate-safe) /
+      sync status + totals / solved problems (paginated); dev-auth boundary
+      (ADR-0004) with cross-user 404 isolation
+- [x] Frontend onboarding page: dev-session bootstrap, handle connect,
+      polling sync status with progress/errors + retry, solved list; no
+      fabricated data, API-down states everywhere
+- [x] **VERIFIED LOCALLY (executed)**: API pytest 70/70 · worker pytest 9/9 ·
+      ruff both · alembic upgrade/check/downgrade on SQLite · web eslint ·
+      vitest 9/9 · `next build` · Playwright 4/4
+- [ ] **PENDING (remote)**: GitHub Actions run — api job re-verifies on
+      PostgreSQL 16, worker job now installs the API package, compose job
+      now builds and smoke-tests the full stack on a Linux runner (local
+      Docker impossible: virtualization disabled)
 
-**Exit**: fixture handle imports correctly; repeated syncs create no
-duplicates; failures retry safely.
+**Exit criteria status**: fixture import ✓, repeated-sync idempotency ✓,
+retry-safety ✓ (all via executed tests); the PostgreSQL-backed run happens
+in CI on push.
 
 ## PHASE 2 — Dashboard
 

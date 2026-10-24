@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ApiStatus } from "@/components/api-status";
 
 const features = [
@@ -36,6 +37,12 @@ export default function HomePage() {
           >
             How it works
           </a>
+          <Link
+            href="/onboarding"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          >
+            Connect your handle
+          </Link>
         </div>
       </header>
 

@@ -42,3 +42,80 @@ export interface Paginated<T> {
   page: number;
   page_size: number;
 }
+
+// ---------------------------------------------------------------------------
+// Codeforces integration (Phase 1)
+
+export interface CfAccount {
+  id: string;
+  handle: string;
+  verified_at: string | null;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+  created_at: string;
+}
+
+export type SyncJobType = "historical" | "incremental" | "reconcile";
+export type SyncJobStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
+
+export interface SyncJob {
+  id: string;
+  job_type: SyncJobType;
+  status: SyncJobStatus;
+  attempt_count: number;
+  started_at: string | null;
+  completed_at: string | null;
+  error_summary: string | null;
+  progress: { pages_fetched?: number; submissions_seen?: number; new_submissions?: number } | null;
+  created_at: string;
+}
+
+export interface AccountCreatedResponse {
+  account: CfAccount;
+  job: SyncJob;
+  queued: boolean;
+}
+
+export interface SyncTriggerResponse {
+  account: CfAccount;
+  job: SyncJob;
+  queued: boolean;
+  already_active: boolean;
+}
+
+export interface SyncTotals {
+  submissions: number;
+  solved_problems: number;
+}
+
+export interface SyncStatusResponse {
+  account: CfAccount;
+  latest_jobs: SyncJob[];
+  totals: SyncTotals;
+}
+
+export interface SolvedProblem {
+  id: string;
+  canonical_key: string;
+  contest_id: number | null;
+  problem_index: string | null;
+  name: string;
+  rating: number | null;
+  tags: string[];
+  url: string | null;
+  first_solved_at: string;
+  last_solved_at: string;
+  accepted_count: number;
+}
+
+export type SolvedProblemListResponse = Paginated<SolvedProblem>;
+
+export interface CreateAccountRequest {
+  handle: string;
+}
+
+export interface DevUserResponse {
+  user_id: string;
+  email: string;
+  display_name: string;
+}

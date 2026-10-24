@@ -35,43 +35,51 @@ docker compose up --build
 
 ```bash
 cd services/api
-py -3.11 -m venv .venv                       # or python3 -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev]"   # Windows Git Bash
-# source .venv/bin/activate && pip install -e ".[dev]"   # macOS/Linux
-.venv/Scripts/python -m pytest
-.venv/Scripts/python -m uvicorn app.main:app --reload
+py -3.11 -m venv .venv-clean               # this repo's Python 3.11 env
+.venv-clean/Scripts/python -m pip install -e ".[dev]"     # Windows Git Bash
+# source .venv-clean/bin/activate && pip install -e ".[dev]"   # macOS/Linux
+.venv-clean/Scripts/python -m pytest
+DATABASE_URL="sqlite+pysqlite:///./local.db" \
+  .venv-clean/Scripts/python -m uvicorn app.main:app --reload
 ```
 
-The API defaults to `postgresql+psycopg://...@localhost:5432`; tests run on
-SQLite automatically. The worker is analogous in `services/worker`
-(`celery -A worker.celery_app worker --loglevel=info`; add `--pool=solo` on
-Windows hosts — prefer Docker instead).
+Worker (needs the API package first; Redis optional — without a broker,
+created sync jobs stay pending until one appears):
+
+```bash
+cd services/worker
+.venv/Scripts/python -m pip install -e ../api -e ".[dev]"
+.venv/Scripts/python -m pytest
+# with Redis running:
+.venv/Scripts/python -m celery -A worker.celery_app worker --loglevel=info --pool=solo
+.venv/Scripts/python -m celery -A worker.celery_app beat --loglevel=info
+```
 
 Frontend: `npm install` at the repo root (workspace install,
 Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
 
-## Verification status (updated 2026-10-24; Windows 10, Python 3.11.6, Node 24.22.1)
+## Verification status (updated 2026-10-24, Phase 1 complete locally)
 
 | Check                                   | Result                              |
 | --------------------------------------- | ----------------------------------- |
-| API `pytest` (11 tests)                 | **PASS** — 11 passed                |
+| API `pytest` (70 tests: health, models, migrations, CF client, importer, endpoints) | **PASS** |
 | API `ruff check`                        | **PASS**                            |
-| Worker `pytest` (3 tests)               | **PASS** — 3 passed                 |
+| Worker `pytest` (9 tests: config, eager sync task, dispatcher) | **PASS** |
 | Worker `ruff check`                     | **PASS**                            |
-| Alembic `upgrade head` → `check` → `downgrade base` (SQLite) | **PASS** — no drift |
-| Live Uvicorn smoke test (`/health`, `/health/ready`, `/api/v1/`, 404 envelope, OpenAPI) | **PASS** |
-| Web `npm install` (lockfile generated)  | **PASS**                            |
-| Web `eslint` (next/core-web-vitals)     | **PASS**                            |
-| Web `vitest` (5 tests)                  | **PASS** — 5 passed                 |
-| Web `next build`                        | **PASS** — static prerender OK      |
-| Playwright e2e (Chromium)               | **PASS** — 2 passed                 |
-| Docker Compose startup                  | **NOT RUN** — no Docker on authoring machine |
-| CI pipeline (GitHub Actions)            | **NOT RUN** — no remote configured  |
+| Alembic `upgrade head` → `check` → `downgrade` → `upgrade` (SQLite) | **PASS** — no drift |
+| Web `eslint`                            | **PASS**                            |
+| Web `vitest` (9 tests incl. onboarding flow) | **PASS**                       |
+| Web `next build` (`/` + `/onboarding` static) | **PASS**                      |
+| Playwright e2e (Chromium, 4 tests)      | **PASS**                            |
+| API tests against PostgreSQL 16         | runs in CI (api job) — next push exercises Phase 1 code |
+| Docker Compose build + smoke            | runs in CI on Linux runners (local Docker impossible: virtualization disabled) |
+| Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live run is manual/Phase 6 |
 
 Known issues:
 
-- Starlette emits a deprecation warning about `httpx` vs `httpx2` in
-  TestClient; cosmetic, tracked for a later dependency refresh.
+- Dev auth boundary (ADR-0004): `X-User-Id` header in non-production;
+  production returns 401 until Phase 5. Not an authentication mechanism.
+- Starlette TestClient deprecation warning re `httpx`/`httpx2` — cosmetic.
 
 ## Repository layout
 

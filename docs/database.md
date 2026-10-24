@@ -4,7 +4,7 @@ PostgreSQL 16 is the source of truth. All changes go through Alembic
 revisions (`services/api/alembic/versions/`). Event timestamps are
 timezone-aware UTC (ADR-0003).
 
-## Current schema (Phase 0)
+## Current schema
 
 ### users (revision `0001`)
 
@@ -18,15 +18,29 @@ timezone-aware UTC (ADR-0003).
 | created_at     | TIMESTAMPTZ             | NOT NULL                     |
 | updated_at     | TIMESTAMPTZ             | NOT NULL                     |
 
+### Codeforces tables (revision `0002`, Phase 1)
+
+- **cf_accounts** — `user_id` FK CASCADE, `handle` + globally-unique
+  `handle_lower`, `verified_at`, `last_synced_at`, `sync_cursor` JSONB
+  (`last_seen_submission_id`), `last_sync_error`.
+- **problems** — shared across users; UNIQUE `canonical_key`
+  (`{contestId}-{index}`, or `ps:{problemsetName}:{slug}` without a contest),
+  name/rating/tags/url refresh freely, identity never changes.
+- **submissions** — UNIQUE (`cf_account_id`, `cf_submission_id`);
+  `submitted_at` from `creationTimeSeconds` (tz-aware UTC, immutable);
+  verdict/counts refresh on re-sync; FK RESTRICT to problems.
+- **user_problems** — UNIQUE (`user_id`, `problem_id`); `first_solved_at`
+  (min-semantics: only moves earlier), `last_solved_at`, `accepted_count`,
+  `independent_solve_verified` (Phase 3).
+- **sync_jobs** — `job_type` (historical/incremental/reconcile), `status`
+  (pending/running/succeeded/failed/cancelled), `attempt_count`,
+  start/completion timestamps, `error_summary`, `progress` JSONB; index on
+  (`cf_account_id`, `created_at`).
+
 ## Planned schema by phase
 
 | Phase | Table            | Purpose                                                        |
 | ----- | ---------------- | -------------------------------------------------------------- |
-| 1     | `cf_accounts`    | handle link per user, sync cursor, `last_synced_at`, `last_sync_error`, unique ownership |
-| 1     | `problems`       | canonical problem identity (contest_id + index + name), rating, tags, URL |
-| 1     | `submissions`    | per-account source submissions; unique `(cf_account_id, cf_submission_id)` |
-| 1     | `user_problems`  | first/last solve, accepted count, unique `(user_id, problem_id)` |
-| 1     | `sync_jobs`      | job type/status/attempts/error summary                          |
 | 2     | `daily_activity` | per user/date rollup: submissions, first solves, reviews        |
 | 3     | `review_sessions`| grade, hint level, duration, independent flag, idempotent completion |
 | 3     | `memory_states`  | FSRS state per user_problem: difficulty, stability, retrievability, due_at, scheduler version |

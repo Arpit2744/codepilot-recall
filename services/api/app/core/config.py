@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     cf_api_base_url: str = "https://codeforces.com/api"
     cf_request_interval_seconds: float = 2.5
     cf_sync_interval_minutes: int = 30
+    # Codeforces publishes ~1 request / 2 seconds as the polite upper bound;
+    # the default interval stays above it on purpose.
+    cf_status_page_size: int = 1000
+    cf_max_retries: int = 5
+    cf_backoff_base_seconds: float = 1.0
+    cf_backoff_max_seconds: float = 60.0
+    cf_connect_timeout_seconds: float = 5.0
+    cf_read_timeout_seconds: float = 30.0
+    cf_historical_max_pages: int = 200
+    cf_incremental_max_pages: int = 20
 
     @field_validator("cors_origins", mode="before")
     @classmethod

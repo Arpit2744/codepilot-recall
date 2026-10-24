@@ -7,6 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 
+# The API package provides models/repositories/importer shared with the worker.
+COPY services/api/pyproject.toml /srv/api/pyproject.toml
+COPY services/api/app /srv/api/app
+RUN pip install /srv/api
+
 COPY services/worker/pyproject.toml ./
 COPY services/worker/worker ./worker
 

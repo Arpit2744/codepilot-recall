@@ -8,6 +8,11 @@ dependencies = [
     "redis==8.1.0",
     "pydantic==2.14.1",
     "pydantic-settings==2.15.0",
+    "httpx==0.28.1",
+    # Sync tasks also import the `app` package from services/api (models,
+    # repositories, importer, CF client). Install it explicitly first —
+    # `pip install -e ../api` — here, in CI, and in the worker Dockerfile.
+    # (A file: path dependency proved fragile across pip versions.)
 ]
 
 [project.optional-dependencies]

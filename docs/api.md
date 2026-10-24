@@ -16,13 +16,23 @@ Every error response uses one shape:
 }
 ```
 
-## Implemented (Phase 0)
+## Implemented (Phase 0 + Phase 1)
 
 | Method | Path             | Description                                  |
 | ------ | ---------------- | -------------------------------------------- |
 | GET    | `/health`        | Liveness: process up; no external calls      |
 | GET    | `/health/ready`  | Readiness: answers `SELECT 1` on the DB      |
 | GET    | `/api/v1/`       | API metadata (name, version, status)         |
+| POST   | `/api/v1/codeforces/accounts` | Link a handle; 202 + historical job queued (validation happens in the job) |
+| GET    | `/api/v1/codeforces/accounts` | List the caller's accounts |
+| POST   | `/api/v1/codeforces/accounts/{account_id}/sync` | Queue an incremental sync; returns the active job if one exists (`already_active`) |
+| GET    | `/api/v1/codeforces/accounts/{account_id}/sync-status` | Account summary, latest jobs, totals |
+| GET    | `/api/v1/problems` | Solved problems of the caller, paginated (`page`, `page_size ≤ 100`) |
+| POST   | `/api/v1/dev/users` | DEV ONLY (non-production): bootstrap a dev user for the `X-User-Id` boundary |
+
+Phase 1 auth note: until Phase 5 ships real sessions, non-production requests
+identify the user via the `X-User-Id` header (see ADR-0004); production
+rejects user-data endpoints with 401. Cross-user access returns 404.
 
 `GET /health` response:
 
@@ -32,17 +42,13 @@ Every error response uses one shape:
 
 ## Planned endpoints
 
-**Auth (Phase 5):** `POST /auth/register`, `POST /auth/login`, `GET /me`
+**Auth (Phase 5):** `POST /auth/register`, `POST /auth/login`, `GET /me` — replaces the dev header.
 
-**Codeforces (Phase 1):**
-- `POST /codeforces/accounts` — link a handle (validates via `user.info`)
-- `GET /codeforces/accounts` — list linked accounts + sync status
-- `POST /codeforces/accounts/{account_id}/sync` — queue a sync job
-- `GET /codeforces/accounts/{account_id}/sync-status` — job status
+**Codeforces (Phase 1 additions later):** periodic reconciliation job type (`reconcile`)
 
 **Dashboard (Phase 2):** `GET /dashboard/summary`, `GET /dashboard/heatmap?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
-**Problems (Phase 2):** `GET /problems` (paginated, filters: rating, tag, solved-state), `GET /problems/{problem_id}`
+**Problems (Phase 2):** `GET /problems/{problem_id}`, richer filters (rating, tag)
 
 **Reviews (Phases 3–4):**
 - `GET /reviews/due` — server-computed queue (due + overdue, urgency order)

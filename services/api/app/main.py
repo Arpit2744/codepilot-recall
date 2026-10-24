@@ -4,6 +4,7 @@ import logging
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -60,6 +61,26 @@ def create_app() -> FastAPI:
             version=__version__,
             environment=settings.environment,
             database="ok",
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "validation_error",
+                    "message": "Invalid request payload.",
+                    "details": [
+                        {
+                            "loc": list(err.get("loc", [])),
+                            "msg": err.get("msg"),
+                            "type": err.get("type"),
+                        }
+                        for err in exc.errors()
+                    ],
+                }
+            },
         )
 
     @app.exception_handler(StarletteHTTPException)
