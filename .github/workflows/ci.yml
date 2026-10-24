@@ -152,7 +152,7 @@ jobs:
       - name: Restore into a fresh empty database
         run: |
           set -o pipefail
-          docker run --rm --network host postgres:16-alpine \
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
             psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE cpr_dst" 2>&1 | tee /tmp/createdb.log || {
             tail -c 600 /tmp/createdb.log | tr '\r\n' '  ' | xargs -I{} printf '::error title=createdb::%s\n' "{}"
             exit 1
