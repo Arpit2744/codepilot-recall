@@ -4,17 +4,21 @@ Usage: python scripts/verify_backup.py  (DATABASE_URL selects the restored DB)
 """
 
 import os
-from datetime import UTC
+import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, text
 
-from scripts.seed_demo import (
-    ACCOUNT_ID,
-    DUE,
-    PROBLEM_ID,
-    T0,
-    USER_ID,
-)
+# Constants must match scripts/seed_demo.py exactly (kept inline: running
+# this file as `python scripts/verify_backup.py` puts scripts/ first on
+# sys.path, so a `scripts.*` package import is not reliably available).
+
+USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+ACCOUNT_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+PROBLEM_ID = uuid.UUID("00000000-0000-0000-0000-000000000003")
+
+T0 = datetime(2026, 1, 15, 10, 0, tzinfo=UTC)
+DUE = datetime(2026, 2, 15, 10, 0, tzinfo=UTC)
 
 EXPECTED_TABLES = {
     "users",

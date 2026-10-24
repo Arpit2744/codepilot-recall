@@ -118,11 +118,27 @@ jobs:
           cache-dependency-path: services/api/requirements.lock
       - name: Install API package
         run: python -m pip install -e .
-      - name: Migrate and seed the source database
+      - name: Migrate the source database
         run: |
           export DATABASE_URL="$SRC_URL"
-          python -m alembic upgrade head
-          python scripts/seed_demo.py
+          python -m alembic upgrade head 2>&1 | tee /tmp/migrate.log || {
+            tail -c 800 /tmp/migrate.log | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 600 | xargs -I{} printf '::error title=alembic-migrate::%s\n' "{}"
+            exit 1
+          }
+      - name: Seed representative data
+        run: |
+          export DATABASE_URL="$SRC_URL"
+          python scripts/seed_demo.py 2>&1 | tee /tmp/seed.log || {
+            tail -c 800 /tmp/seed.log | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 600 | xargs -I{} printf '::error title=seed::%s\n' "{}"
+            exit 1
+          }
+      - name: Verify seed landed in the source database
+        run: |
+          export DATABASE_URL="$SRC_URL"
+          python -c "import uuid; from sqlalchemy import create_engine, text; e = create_engine('$SRC_URL'); c = e.connect(); print('users:', c.execute(text('select count(*) from users')).scalar()); assert c.execute(text('select count(*) from user_sessions')).scalar() == 0" 2>&1 | tee /tmp/verify_seed.log || {
+            tail -c 800 /tmp/verify_seed.log | tr '\r\n' '  ' | tail -c 600 | xargs -I{} printf '::error title=verify-seed::%s\n' "{}"
+            exit 1
+          }
       - name: Create backup (pg_dump, custom format, out of any artifact)
         run: |
           PGPASSWORD=postgres pg_dump -h localhost -U postgres -Fc cpr_src > /tmp/cpr_backup.dump
