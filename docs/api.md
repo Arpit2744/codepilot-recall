@@ -27,8 +27,16 @@ Every error response uses one shape:
 | GET    | `/api/v1/codeforces/accounts` | List the caller's accounts |
 | POST   | `/api/v1/codeforces/accounts/{account_id}/sync` | Queue an incremental sync; returns the active job if one exists (`already_active`) |
 | GET    | `/api/v1/codeforces/accounts/{account_id}/sync-status` | Account summary, latest jobs, totals |
-| GET    | `/api/v1/problems` | Solved problems of the caller, paginated (`page`, `page_size ≤ 100`) |
+| GET    | `/api/v1/dashboard/summary?timezone=` | Totals (submissions, solved problems), current streak, 5 recent first solves, account sync status |
+| GET    | `/api/v1/dashboard/heatmap?from&to&timezone&mode` | Continuous local dates incl. zero days; `mode` ∈ submissions / first_solves / reviews |
+| GET    | `/api/v1/problems` | Solved problems, paginated; filters `search`, `rating_min/max`, `tag`; sort ∈ first_solved_at / last_solved_at / name / rating / accepted_count, `order` asc/desc |
 | POST   | `/api/v1/dev/users` | DEV ONLY (non-production): bootstrap a dev user for the `X-User-Id` boundary |
+
+Dashboard semantics (ADR-0005): activity is derived on read from canonical
+records; local dates bucket by the requested IANA timezone's midnight (never
+UTC-relabeled); ranges are capped at 731 days. The `reviews` heatmap mode
+returns `available: false` with an explanatory message until Phase 3 — review
+data is never fabricated as zeros.
 
 Phase 1 auth note: until Phase 5 ships real sessions, non-production requests
 identify the user via the `X-User-Id` header (see ADR-0004); production

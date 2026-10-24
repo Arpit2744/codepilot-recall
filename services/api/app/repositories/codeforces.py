@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import CfAccount, Problem, Submission, SyncJob, User, UserProblem
@@ -260,18 +260,71 @@ def account_totals(db: Session, account: CfAccount) -> dict[str, int]:
     return {"submissions": int(submissions or 0), "solved_problems": int(solved or 0)}
 
 
+SORTABLE_PROBLEM_FIELDS = ("first_solved_at", "last_solved_at", "name", "rating", "accepted_count")
+
+
+def _problem_order(sort: str, order: str) -> list:
+    """Deterministic ordering: primary column plus stable tiebreakers.
+    Nullable ratings always sort last in both directions."""
+    descending = order == "desc"
+    if sort == "rating":
+        col = Problem.rating.desc() if descending else Problem.rating.asc()
+        rating = col.nulls_last()
+        return [rating, Problem.name.asc()]
+    primary = {
+        "first_solved_at": UserProblem.first_solved_at,
+        "last_solved_at": UserProblem.last_solved_at,
+        "name": Problem.name,
+        "accepted_count": UserProblem.accepted_count,
+    }[sort]
+    tiebreak = UserProblem.first_solved_at if sort == "name" else Problem.name
+    return [
+        primary.desc() if descending else primary.asc(),
+        tiebreak.asc(),
+    ]
+
+
 def solved_problems_page(
-    db: Session, *, user_id: uuid.UUID, page: int, page_size: int
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    page: int,
+    page_size: int,
+    search: str | None = None,
+    rating_min: int | None = None,
+    rating_max: int | None = None,
+    tag: str | None = None,
+    sort: str = "first_solved_at",
+    order: str = "desc",
 ) -> tuple[list[dict], int]:
-    """Solved-problem summary rows (problem joined with the user's rollup)."""
+    """Solved-problem rows (problem joined with the user's rollup), filtered
+    and sorted server-side. `sort`/`order` must already be validated."""
+    conditions = [UserProblem.user_id == user_id]
+
+    if search:
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        conditions.append(Problem.name.ilike(f"%{escaped}%", escape="\\"))
+    if rating_min is not None:
+        conditions.append(Problem.rating >= rating_min)
+    if rating_max is not None:
+        conditions.append(Problem.rating <= rating_max)
+    if tag:
+        # Quote-wrapped containment on the JSON text: '"two"' never matches
+        # 'two-pointers'. Portable across SQLite (CAST to TEXT) and PG (JSONB
+        # to text); tag filters are scans either way (no GIN index yet).
+        conditions.append(cast(Problem.tags, String).ilike(f'%"{tag}"%'))
+
     total = db.scalar(
-        select(func.count()).select_from(UserProblem).where(UserProblem.user_id == user_id)
+        select(func.count())
+        .select_from(UserProblem)
+        .join(Problem, UserProblem.problem_id == Problem.id)
+        .where(*conditions)
     )
     rows = db.execute(
         select(UserProblem, Problem)
         .join(Problem, UserProblem.problem_id == Problem.id)
-        .where(UserProblem.user_id == user_id)
-        .order_by(UserProblem.first_solved_at.desc())
+        .where(*conditions)
+        .order_by(*_problem_order(sort, order))
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()

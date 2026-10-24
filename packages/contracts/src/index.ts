@@ -119,3 +119,73 @@ export interface DevUserResponse {
   email: string;
   display_name: string;
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard (Phase 2)
+
+export type HeatmapMode = "submissions" | "first_solves" | "reviews";
+
+export interface DashboardTotals {
+  submissions: number;
+  solved_problems: number;
+}
+
+export interface RecentFirstSolve {
+  problem_id: string;
+  name: string;
+  contest_id: number | null;
+  problem_index: string | null;
+  rating: number | null;
+  first_solved_at: string;
+}
+
+export interface AccountSyncStatus {
+  id: string;
+  handle: string;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+}
+
+export interface DashboardSummaryResponse {
+  timezone: string;
+  generated_at: string;
+  totals: DashboardTotals;
+  current_streak_days: number;
+  recent_first_solves: RecentFirstSolve[];
+  accounts: AccountSyncStatus[];
+}
+
+export interface HeatmapDay {
+  date: string; // local calendar date in the requested timezone, YYYY-MM-DD
+  count: number;
+}
+
+export interface HeatmapResponse {
+  timezone: string;
+  mode: HeatmapMode;
+  from: string;
+  to: string;
+  available: boolean;
+  /** Empty when available=false (e.g. reviews until Phase 3). */
+  days: HeatmapDay[];
+  max_count: number;
+  message: string | null;
+}
+
+export type ProblemSortField =
+  | "first_solved_at"
+  | "last_solved_at"
+  | "name"
+  | "rating"
+  | "accepted_count";
+
+export interface ProblemFilters {
+  search?: string;
+  rating_min?: number;
+  rating_max?: number;
+  tag?: string;
+  sort?: ProblemSortField;
+  order?: "asc" | "desc";
+  page?: number;
+  page_size?: number;
+}

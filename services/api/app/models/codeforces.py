@@ -71,6 +71,7 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "cf_account_id", "cf_submission_id", name="uq_submissions_account_source_id"
         ),
         Index("ix_submissions_problem_submitted", "problem_id", "submitted_at"),
+        Index("ix_submissions_account_submitted", "cf_account_id", "submitted_at"),
     )
 
     cf_account_id: Mapped[UUID] = mapped_column(
@@ -98,6 +99,7 @@ class UserProblem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "user_problems"
     __table_args__ = (
         UniqueConstraint("user_id", "problem_id", name="uq_user_problems_user_problem"),
+        Index("ix_user_problems_user_first_solved", "user_id", "first_solved_at"),
     )
 
     user_id: Mapped[UUID] = mapped_column(

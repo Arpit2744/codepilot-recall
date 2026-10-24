@@ -58,22 +58,26 @@ cd services/worker
 Frontend: `npm install` at the repo root (workspace install,
 Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
 
-## Verification status (updated 2026-10-24, Phase 1 complete locally)
+## Verification status (updated 2026-10-24, Phase 2 complete locally)
 
 | Check                                   | Result                              |
 | --------------------------------------- | ----------------------------------- |
-| API `pytest` (70 tests: health, models, migrations, CF client, importer, endpoints) | **PASS** |
+| API `pytest` (105 tests: health, models, migrations, config, CF client, importer, endpoints, dashboard aggregates, filters) | **PASS** |
 | API `ruff check`                        | **PASS**                            |
-| Worker `pytest` (9 tests: config, eager sync task, dispatcher) | **PASS** |
+| Worker `pytest` (9 tests)               | **PASS**                            |
 | Worker `ruff check`                     | **PASS**                            |
-| Alembic `upgrade head` → `check` → `downgrade` → `upgrade` (SQLite) | **PASS** — no drift |
+| Alembic `0001→0003` upgrade → `check` → downgrade (SQLite) | **PASS** — no drift |
 | Web `eslint`                            | **PASS**                            |
-| Web `vitest` (9 tests incl. onboarding flow) | **PASS**                       |
-| Web `next build` (`/` + `/onboarding` static) | **PASS**                      |
-| Playwright e2e (Chromium, 4 tests)      | **PASS**                            |
-| API tests against PostgreSQL 16         | runs in CI (api job) — next push exercises Phase 1 code |
-| Docker Compose build + smoke            | runs in CI on Linux runners (local Docker impossible: virtualization disabled) |
-| Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live run is manual/Phase 6 |
+| Web `vitest` (16 tests incl. dashboard flows) | **PASS**                       |
+| Web `next build` (`/`, `/onboarding`, `/dashboard` static) | **PASS**           |
+| Playwright e2e (Chromium, 6 tests incl. dashboard) | **PASS**            |
+| PostgreSQL 16 + Docker Compose smoke    | verified in CI (run 40117225412 for Phase 1 at `3a5f64e`; Phase 2 run pending push) |
+| Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live import is manual/Phase 6 |
+
+Timezone-boundary tests: submissions near UTC midnight land on the correct
+local date for Asia/Kolkata and America/New_York; heatmap aggregates match
+fixtures; repeated syncs never inflate totals (ADR-0005 derives everything
+from canonical records).
 
 Known issues:
 

@@ -37,11 +37,21 @@ timezone-aware UTC (ADR-0003).
   start/completion timestamps, `error_summary`, `progress` JSONB; index on
   (`cf_account_id`, `created_at`).
 
+### Activity aggregation (revision `0003`, Phase 2)
+
+No `daily_activity` table: dashboard aggregates are **derived on read**
+(ADR-0005) — timezone-correct bucketing depends on the queried zone, and the
+unique constraints on `submissions`/`user_problems` make derived counts exact
+by construction (repeated syncs cannot inflate them; discovering older
+solves moves `first_solved_at` earlier and the aggregates follow). Revision
+`0003` adds the indexes the scans need:
+`submissions(cf_account_id, submitted_at)` and
+`user_problems(user_id, first_solved_at)`.
+
 ## Planned schema by phase
 
 | Phase | Table            | Purpose                                                        |
 | ----- | ---------------- | -------------------------------------------------------------- |
-| 2     | `daily_activity` | per user/date rollup: submissions, first solves, reviews        |
 | 3     | `review_sessions`| grade, hint level, duration, independent flag, idempotent completion |
 | 3     | `memory_states`  | FSRS state per user_problem: difficulty, stability, retrievability, due_at, scheduler version |
 | 5     | `user_settings` / `notification_preferences` | per-user options            |

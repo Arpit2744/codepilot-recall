@@ -32,47 +32,54 @@ Phased plan with exit criteria. A phase is complete only when its checks
 passes") is **not yet fully met** — blocked on the Node/Docker items above,
 not on code.
 
-## PHASE 1 — Data ingestion ✅ (code complete; CI run pending push)
+## PHASE 1 — Data ingestion ✅ (complete, remotely verified)
 
-- [x] Codeforces client (`user.info`, `user.status`) — shared Redis rate
-      limiter (2.5 s default), bounded retries with backoff + jitter,
-      Retry-After honored, FAILED envelope never read as empty history
-- [x] Canonical problem identity + normalization (verdicts, UTC timestamps
-      from `creationTimeSeconds` only)
-- [x] Tables: `cf_accounts`, `problems`, `submissions`, `user_problems`,
-      `sync_jobs` (Alembic revision `0002`; drift guard green)
-- [x] Historical import (paged) + incremental sync (known-page stop with
-      verdict-refresh overlap) + stale-job recovery + due-account dispatcher
-      on the existing beat interval
-- [x] Idempotent upserts (unique account+source id); per-account locking
-      (`FOR UPDATE`) + atomic job claim; cursor only set on full success
-- [x] `first_solved_at` = earliest accepted submission, min-semantics
-- [x] Endpoints: link handle / list accounts / trigger sync (duplicate-safe) /
-      sync status + totals / solved problems (paginated); dev-auth boundary
-      (ADR-0004) with cross-user 404 isolation
-- [x] Frontend onboarding page: dev-session bootstrap, handle connect,
-      polling sync status with progress/errors + retry, solved list; no
-      fabricated data, API-down states everywhere
-- [x] **VERIFIED LOCALLY (executed)**: API pytest 70/70 · worker pytest 9/9 ·
-      ruff both · alembic upgrade/check/downgrade on SQLite · web eslint ·
-      vitest 9/9 · `next build` · Playwright 4/4
-- [ ] **PENDING (remote)**: GitHub Actions run — api job re-verifies on
-      PostgreSQL 16, worker job now installs the API package, compose job
-      now builds and smoke-tests the full stack on a Linux runner (local
-      Docker impossible: virtualization disabled)
+CI run https://github.com/Arpit2744/codepilot-recall/actions/runs/40117225412
+passed all four jobs at commit `3a5f64e` (2026-10-24): API tests on
+PostgreSQL 16, worker tests, web lint/unit/build, and the Docker Compose
+build & smoke (migrations ran, `/health/ready` healthy, web returned 200 on
+a Linux runner). Live Codeforces calls were NOT part of verification — all
+tests use fixtures by design; the first live import remains a manual/Phase 6
+step.
 
-**Exit criteria status**: fixture import ✓, repeated-sync idempotency ✓,
-retry-safety ✓ (all via executed tests); the PostgreSQL-backed run happens
-in CI on push.
+- [x] Codeforces client (`user.info`, `user.status`) — shared Redis/in-memory rate limiter (2.5 s default), bounded retries with backoff + jitter, Retry-After honored, FAILED envelope never read as empty history
+- [x] Canonical problem identity + normalization (verdicts, UTC timestamps from `creationTimeSeconds` only)
+- [x] Tables: `cf_accounts`, `problems`, `submissions`, `user_problems`, `sync_jobs` (revision `0002`; drift guard green on SQLite and PostgreSQL)
+- [x] Historical import (paged) + incremental sync (known-page stop with verdict-refresh overlap) + stale-job recovery + due-account dispatcher on beat
+- [x] Idempotent upserts; per-account locking; cursor only set on full success; `first_solved_at` min-semantics
+- [x] Endpoints + dev-auth boundary (ADR-0004) with cross-user 404 isolation
+- [x] Frontend onboarding page; ADR-0004; docs; `.env.example` CF knobs
+- [x] CI fixes verified by green runs: test-package imports, workspace-aware web image build, lockfile in build context, CORS `NoDecode` parsing, compose `--wait` + retried web probe
 
-## PHASE 2 — Dashboard
+## PHASE 2 — Dashboard ✅ (code complete; CI pending push)
 
-- [ ] `daily_activity` rollups + summary/heatmap endpoints
-- [ ] Dashboard cards, activity heatmap (3 modes), solved-problems table with
-      filters/pagination, topic/rating filters
-- [ ] Timezone-boundary tests; aggregate-vs-fixture tests
+- [x] Aggregation design: derive on read from canonical tables (ADR-0005 —
+      no `daily_activity` materialization; timezone-dependent bucketing and
+      idempotent sources make derivation exact by construction)
+- [x] Migration `0003`: `submissions(cf_account_id, submitted_at)` +
+      `user_problems(user_id, first_solved_at)` indexes; drift guard green
+- [x] `GET /dashboard/summary?timezone=` — totals, streak, recent first
+      solves, account sync status (existing data only)
+- [x] `GET /dashboard/heatmap?from&to&timezone&mode` — continuous local
+      dates incl. zeros; `reviews` mode honestly unavailable until Phase 3
+- [x] `GET /problems` filters: search/rating range/exact tag; validated
+      sort whitelist with deterministic tiebreaks (nulls last); pagination
+- [x] `/dashboard` page: summary cards, 3-mode heatmap (Reviews disabled
+      with explanation), filtered table, timezone selector, loading/empty/
+      error/API-down states, no fabricated data
+- [x] **VERIFIED LOCALLY (executed)**: API pytest **105/105** · worker
+      pytest 9/9 · ruff both · alembic 0003 upgrade/check/downgrade on
+      SQLite · eslint · vitest **16/16** · `next build` (`/dashboard`
+      static) · Playwright **6/6**
+- [x] Timezone-boundary tests: UTC-midnight submissions land on the correct
+      local date for Asia/Kolkata (+5:30, next day) and America/New_York
+      (−4, previous day); aggregates match fixtures; repeated syncs and
+      older-solve discovery verified against endpoints
+- [ ] GitHub Actions run for the Phase 2 commit (PostgreSQL + Compose
+      verification) — pending push
 
-**Exit**: aggregates match fixtures; timezone boundary tests pass.
+**Exit criteria**: aggregates match fixtures ✓ (endpoint tests); timezone
+boundary tests pass ✓. Remote CI run closes this phase.
 
 ## PHASE 3 — FSRS
 
