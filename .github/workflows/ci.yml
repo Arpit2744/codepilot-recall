@@ -166,12 +166,16 @@ jobs:
       - name: Verify schema and row integrity in the restored database
         run: |
           export DATABASE_URL="$DST_URL"
-          python scripts/verify_backup.py
+          python scripts/verify_backup.py 2>&1 | tee /tmp/verify_restore.log || {
+            tail -c 800 /tmp/verify_restore.log | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 600 | xargs -I{} printf '::error title=verify-restore::%s\n' "{}"
+            exit 1
+          }
       - name: Clean up throwaway data
         if: always()
         run: |
           rm -f /tmp/cpr_backup.dump
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS cpr_dst" || true
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
+            psql -h 127.0.0.1 -U postgres -c "DROP DATABASE IF EXISTS cpr_dst" || true
 
   e2e-auth:
     # Phase 5: integrated auth E2E — real API + PostgreSQL + browser; two
