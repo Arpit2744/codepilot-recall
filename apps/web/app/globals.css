@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Dark-mode-first product: the dark palette is the default experience. */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+}

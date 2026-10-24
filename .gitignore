@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv*/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.sqlite
+*.sqlite3
+.test.db
+.coverage*
+htmlcov/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS — keep shared workspace config, ignore personal editor state
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local databases / dumps (incl. the standalone uvicorn SQLite file)
+*.db
+*.dump
+*.sql.gz

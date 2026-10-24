@@ -1,0 +1,101 @@
+name: codepilot-recall
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codepilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codepilot}
+      POSTGRES_DB: ${POSTGRES_DB:-codepilot}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codepilot} -d ${POSTGRES_DB:-codepilot}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    # 7.2 is the last BSD-licensed Redis line; kept deliberately.
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: >
+      sh -c "alembic upgrade head &&
+             exec uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-codepilot}:${POSTGRES_PASSWORD:-codepilot}@postgres:5432/${POSTGRES_DB:-codepilot}
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-codepilot}:${POSTGRES_PASSWORD:-codepilot}@postgres:5432/${POSTGRES_DB:-codepilot}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    command: celery -A worker.celery_app beat --loglevel=info
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        # Inlined into the client bundle at build time.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

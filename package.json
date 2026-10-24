@@ -1,0 +1,20 @@
+{
+  "name": "codepilot-recall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CodePilot Recall — spaced-repetition revision for competitive programmers",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "web:dev": "npm run dev --workspace @codepilot/web",
+    "web:build": "npm run build --workspace @codepilot/web",
+    "web:lint": "npm run lint --workspace @codepilot/web",
+    "web:test": "npm run test --workspace @codepilot/web",
+    "web:e2e": "npm run e2e --workspace @codepilot/web"
+  }
+}

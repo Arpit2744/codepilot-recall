@@ -1,0 +1,30 @@
+# Deny everything by default; allow only what images need (build context = repo root).
+*
+
+# --- API service ---
+!services/api/pyproject.toml
+!services/api/app/**
+!services/api/alembic/**
+!services/api/alembic.ini
+services/api/.venv/**
+services/api/.pytest_cache/**
+services/api/.ruff_cache/**
+
+# --- Worker service ---
+!services/worker/pyproject.toml
+!services/worker/worker/**
+services/worker/.venv/**
+services/worker/.pytest_cache/**
+services/worker/.ruff_cache/**
+
+# --- Web service ---
+!package.json
+!apps/web/**
+apps/web/node_modules/**
+apps/web/.next/**
+apps/web/test-results/**
+apps/web/playwright-report/**
+apps/web/coverage/**
+
+# --- Contracts ---
+!packages/contracts/**

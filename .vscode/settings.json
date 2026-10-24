@@ -1,0 +1,21 @@
+{
+  // Default to the API service's venv (the service you edit most often).
+  // Switch to services/worker/.venv when working on the worker.
+  "python.defaultInterpreterPath": "${workspaceFolder}/services/api/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestPath": "pytest",
+  // ESLint flat config lives in apps/web.
+  "eslint.workingDirectories": [{ "pattern": "apps/web" }],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  }
+}
