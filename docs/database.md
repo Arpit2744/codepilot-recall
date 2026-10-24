@@ -48,11 +48,23 @@ solves moves `first_solved_at` earlier and the aggregates follow). Revision
 `submissions(cf_account_id, submitted_at)` and
 `user_problems(user_id, first_solved_at)`.
 
+### Review tables (revision `0004`, Phase 3)
+
+- **review_sessions** — one review attempt per row: `user_id` + `user_problem_id`
+  FKs (CASCADE), `started_at`/`completed_at` UTC, `status` pending/completed,
+  `outcome` (again/hard/good/easy), `independent`, `help_level`
+  (none/hint/editorial), optional `duration_seconds`/`notes`; index
+  (`user_id`, `completed_at`) drives the Reviews heatmap (completed only).
+- **memory_states** — UNIQUE `user_problem_id`: full serialized FSRS state
+  (`{"version","scheduler","card","last_log"}`), `scheduler_version`,
+  queryable `due_at` (indexed), `last_review_at`, `stability`, `difficulty`,
+  `repetitions`, `lapses`. Corrupt state refuses to load (ADR-0006) — never
+  silently reset.
+
 ## Planned schema by phase
 
 | Phase | Table            | Purpose                                                        |
 | ----- | ---------------- | -------------------------------------------------------------- |
-| 3     | `review_sessions`| grade, hint level, duration, independent flag, idempotent completion |
 | 3     | `memory_states`  | FSRS state per user_problem: difficulty, stability, retrievability, due_at, scheduler version |
 | 5     | `user_settings` / `notification_preferences` | per-user options            |
 

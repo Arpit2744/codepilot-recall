@@ -111,20 +111,22 @@ test("renders summary cards from the real API", async () => {
   expect(screen.getByText(/dates are local calendar days in utc/i)).toBeInTheDocument();
 });
 
-test("heatmap mode switching and disabled reviews state", async () => {
+test("heatmap mode switching including real reviews mode", async () => {
   stubFetch();
   window.localStorage.setItem("cpr.dev-user-id", DEV_USER.user_id);
   routes = FULL_ROUTES;
 
   render(<DashboardPage />);
-  const reviewsTab = await screen.findByRole("tab", { name: "Reviews" });
-  expect(reviewsTab).toHaveAttribute("aria-disabled", "true");
+  await screen.findByText("421");
 
-  // Reviews stays disabled: clicking must not select it.
-  await userEvent.click(reviewsTab);
-  expect(screen.getByRole("tab", { name: "Reviews" })).toHaveAttribute("aria-selected", "false");
+  // Phase 3: Reviews is a real mode (completed sessions from the backend).
+  await userEvent.click(screen.getByRole("tab", { name: "Reviews" }));
+  expect(screen.getByRole("tab", { name: "Reviews" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 
-  // First solves is selectable.
+  // First solves is selectable too.
   await userEvent.click(screen.getByRole("tab", { name: "First solves" }));
   await waitFor(() => {
     expect(screen.getByRole("tab", { name: "First solves" })).toHaveAttribute(

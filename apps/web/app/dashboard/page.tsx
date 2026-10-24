@@ -193,6 +193,12 @@ export default function DashboardPage() {
             </select>
           </label>
           <Link
+            href="/review"
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          >
+            Review queue
+          </Link>
+          <Link
             href="/onboarding"
             className="text-sm text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
           >

@@ -13,6 +13,9 @@ dependencies = [
     "psycopg[binary]==3.3.6",
     "redis==8.1.0",
     "httpx==0.28.1",
+    # FSRS spaced-repetition scheduler (Phase 3); API verified against the
+    # installed 6.3.2 — see app/integrations/fsrs/adapter.py.
+    "fsrs==6.3.2",
 ]
 
 [project.optional-dependencies]

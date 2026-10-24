@@ -220,14 +220,15 @@ def test_heatmap_includes_zero_days_continuously(auth_client, seeded_user):
     assert sum(d["count"] for d in days) == 6  # rollup consistent with source rows
 
 
-def test_heatmap_reviews_mode_is_explicitly_unavailable(auth_client, seeded_user):
+def test_heatmap_reviews_mode_available_with_zero_counts(auth_client, seeded_user):
+    """Phase 3: reviews mode is real; with no completed sessions it is an
+    honest zero (not unavailable)."""
     body = auth_client.get(
         "/api/v1/dashboard/heatmap?from=2024-05-01&to=2024-05-03&timezone=UTC&mode=reviews"
     ).json()
-    assert body["available"] is False
-    assert body["days"] == []
+    assert body["available"] is True
+    assert [d["count"] for d in body["days"]] == [0, 0, 0]
     assert body["max_count"] == 0
-    assert "Phase 3" in body["message"]
 
 
 def test_heatmap_isolated_across_users(auth_client, seeded_user, make_user):

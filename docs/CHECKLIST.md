@@ -3,7 +3,7 @@
 Phased plan with exit criteria. A phase is complete only when its checks
 **actually ran** and passed — file generation alone never counts.
 
-## PHASE 0 — Foundation ✅ (code complete; environment-limited verification)
+## PHASE 0 — Foundation ✅ (verified: local suites then CI runs #1–#4 green)
 
 - [x] Inspect workspace (was empty), tools, runtime, git status
 - [x] Monorepo skeleton: `apps/web`, `services/api`, `services/worker`,
@@ -51,7 +51,11 @@ step.
 - [x] Frontend onboarding page; ADR-0004; docs; `.env.example` CF knobs
 - [x] CI fixes verified by green runs: test-package imports, workspace-aware web image build, lockfile in build context, CORS `NoDecode` parsing, compose `--wait` + retried web probe
 
-## PHASE 2 — Dashboard ✅ (code complete; CI pending push)
+## PHASE 2 — Dashboard ✅ (complete, remotely verified)
+
+CI run https://github.com/Arpit2744/codepilot-recall/actions/runs/40119818727
+passed all four jobs at commit `9471173` (2026-10-24), including the API
+suite with Phase 2 tests on PostgreSQL 16 and the Compose smoke.
 
 - [x] Aggregation design: derive on read from canonical tables (ADR-0005 —
       no `daily_activity` materialization; timezone-dependent bucketing and
@@ -75,22 +79,39 @@ step.
       local date for Asia/Kolkata (+5:30, next day) and America/New_York
       (−4, previous day); aggregates match fixtures; repeated syncs and
       older-solve discovery verified against endpoints
-- [ ] GitHub Actions run for the Phase 2 commit (PostgreSQL + Compose
-      verification) — pending push
+- [x] GitHub Actions run 40119818727 for `9471173`: all four jobs green
+      (PostgreSQL-backed API tests + Compose smoke included)
 
 **Exit criteria**: aggregates match fixtures ✓ (endpoint tests); timezone
 boundary tests pass ✓. Remote CI run closes this phase.
 
-## PHASE 3 — FSRS
+## PHASE 3 — FSRS ✅ (code complete; CI pending push)
 
-- [ ] Install + pin `fsrs==6.3.2`; adapter in `app/integrations/fsrs`
-- [ ] `review_sessions` + `memory_states` tables (Alembic revision)
-- [ ] Review-session lifecycle: start → outcome → atomic state update
-- [ ] Outcome→rating mapping (documented, revisable); idempotent completion
-- [ ] State-transition and due-date tests; restart/timezone/overdue tests
+- [x] `fsrs==6.3.2` pinned (API introspected from the installed wheel);
+      adapter in `app/integrations/fsrs` with fuzzing off, version-tagged
+      serialized state, corrupt-state refusal (ADR-0006)
+- [x] `review_sessions` + `memory_states` tables (revision `0004`;
+      drift guard green on SQLite)
+- [x] Lifecycle: POST sessions → POST complete; row-locked, atomic
+      (review + memory in one transaction); repeat completion → 409,
+      FSRS advanced exactly once
+- [x] Outcome policy Again/Hard/Good/Easy documented (ADR-0006);
+      independent + help_level recorded separately; independent Good/Easy
+      sets `independent_solve_verified`; CF acceptance never a review
+- [x] GET /reviews/due, /reviews/history; /review UI with honest states
+      and backend-confirmed next due date; Reviews heatmap mode live on
+      completed_at (timezone-bucketed)
+- [x] **VERIFIED LOCALLY (executed)**: API pytest **137/137** (adapter
+      pinned-value tests; lifecycle, four outcomes, independence,
+      rollback-together, restart survival, corrupt-state refusal,
+      duplicate completion, isolation, due/overdue, tz heatmap) · worker
+      9/9 · ruff both · alembic 0004 upgrade/check/downgrade · eslint ·
+      vitest 21/21 · `next build` · Playwright 8/8
+- [ ] GitHub Actions run for the Phase 3 commit (PostgreSQL + Compose
+      verification) — pending push
 
-**Exit**: outcomes update scheduler state; duplicate completion rejected;
-state survives restarts.
+**Exit criteria**: outcomes update scheduler state ✓; duplicate completion
+rejected ✓; state survives restarts ✓; remote CI run closes the phase.
 
 ## PHASE 4 — Revision queue
 

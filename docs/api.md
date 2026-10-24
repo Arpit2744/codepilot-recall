@@ -30,7 +30,21 @@ Every error response uses one shape:
 | GET    | `/api/v1/dashboard/summary?timezone=` | Totals (submissions, solved problems), current streak, 5 recent first solves, account sync status |
 | GET    | `/api/v1/dashboard/heatmap?from&to&timezone&mode` | Continuous local dates incl. zero days; `mode` ∈ submissions / first_solves / reviews |
 | GET    | `/api/v1/problems` | Solved problems, paginated; filters `search`, `rating_min/max`, `tag`; sort ∈ first_solved_at / last_solved_at / name / rating / accepted_count, `order` asc/desc |
+| POST   | `/api/v1/reviews/sessions` | Start a review for a solved `problem_id`; 201 with session + problem + memory (null before the first review) |
+| GET    | `/api/v1/reviews/sessions/{id}` | Session status + problem + memory state |
+| POST   | `/api/v1/reviews/sessions/{id}/complete` | Record outcome; advances FSRS exactly once; 409 on repeat completion |
+| GET    | `/api/v1/reviews/due` | Problems with `due_at <= now` (oldest first) |
+| GET    | `/api/v1/reviews/history` | Completed reviews, newest first, paginated |
 | POST   | `/api/v1/dev/users` | DEV ONLY (non-production): bootstrap a dev user for the `X-User-Id` boundary |
+
+Review outcome policy (ADR-0006): **Again** = forgot / needed substantial
+help; **Hard** = significant struggle or limited assistance; **Good** =
+solved independently with effort; **Easy** = solved independently, quickly,
+confidently. `independent` and `help_level` (none/hint/editorial) are
+recorded separately from the rating; only independent Good/Easy marks a
+solve as independently verified. A Codeforces acceptance is never an FSRS
+review — the first explicit outcome initializes the memory. Heatmap
+`reviews` mode counts completed sessions bucketed by the requested timezone.
 
 Dashboard semantics (ADR-0005): activity is derived on read from canonical
 records; local dates bucket by the requested IANA timezone's midnight (never

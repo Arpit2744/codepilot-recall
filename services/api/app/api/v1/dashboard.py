@@ -11,6 +11,7 @@ from app.api.deps import get_current_user_id
 from app.core.db import get_db
 from app.models.base import utcnow
 from app.repositories import dashboard as dash_repo
+from app.repositories import reviews as reviews_repo
 from app.schemas.dashboard import (
     AccountSyncStatus,
     DashboardSummaryResponse,
@@ -32,11 +33,6 @@ from app.services.dashboard import (
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 HEATMAP_MODES = ("submissions", "first_solves", "reviews")
-
-REVIEWS_UNAVAILABLE = (
-    "Review sessions are tracked from Phase 3; no review data exists yet, "
-    "so this mode is intentionally unavailable rather than shown as zero."
-)
 
 
 def _resolve_tz_or_422(name: str):
@@ -113,22 +109,14 @@ def dashboard_heatmap(
     if (to - from_).days > MAX_HEATMAP_DAYS:
         raise HTTPException(status_code=422, detail=f"Range exceeds {MAX_HEATMAP_DAYS} days")
 
-    if mode == "reviews":
-        # Honest unavailability: never fabricate zero-activity review data.
-        return HeatmapResponse(
-            timezone=str(tz),
-            mode="reviews",
-            from_date=from_.isoformat(),
-            to_date=to.isoformat(),
-            available=False,
-            days=[],
-            max_count=0,
-            message=REVIEWS_UNAVAILABLE,
-        )
-
     start_utc, end_utc = local_range_to_utc(from_, to, tz)
     if mode == "submissions":
         timestamps = dash_repo.submission_timestamps(
+            db, user_id=user_id, start_utc=start_utc, end_utc=end_utc
+        )
+    elif mode == "reviews":
+        # Phase 3: real completed review sessions (started-only never counts).
+        timestamps = reviews_repo.completed_review_timestamps(
             db, user_id=user_id, start_utc=start_utc, end_utc=end_utc
         )
     else:

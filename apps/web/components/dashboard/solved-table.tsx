@@ -112,7 +112,10 @@ export function SolvedTable({
               <th scope="col" className="py-2 pr-2">Rating</th>
               <th scope="col" className="py-2 pr-2">Tags</th>
               <th scope="col" className="py-2 pr-2">First solved</th>
-              <th scope="col" className="py-2">Solves</th>
+              <th scope="col" className="py-2 pr-2">Solves</th>
+              <th scope="col" className="py-2">
+                <span className="sr-only">Review</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -141,7 +144,15 @@ export function SolvedTable({
                 <td className="py-2 pr-2 text-slate-400">
                   {problem.first_solved_at.slice(0, 10)}
                 </td>
-                <td className="py-2 text-slate-400">{problem.accepted_count}</td>
+                <td className="py-2 pr-2 text-slate-400">{problem.accepted_count}</td>
+                <td className="py-2">
+                  <a
+                    href={`/review?problem=${problem.id}`}
+                    className="text-xs text-indigo-300 underline-offset-2 hover:underline"
+                  >
+                    Review
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -67,19 +67,16 @@ export function Heatmap({
         <h2 className="text-base font-semibold">Activity</h2>
         <div role="tablist" aria-label="Activity mode" className="flex gap-1 rounded-lg bg-slate-950/60 p-1">
           {modes.map((m) => {
-            const disabled = m === "reviews"; // no review data until Phase 3
             const selected = mode === m;
             return (
               <button
                 key={m}
                 role="tab"
                 aria-selected={selected}
-                aria-disabled={disabled}
-                title={disabled ? "Review sessions arrive in Phase 3" : undefined}
-                onClick={() => !disabled && onModeChange(m)}
+                onClick={() => onModeChange(m)}
                 className={`rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-indigo-400 ${
                   selected ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-slate-200"
-                } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                }`}
               >
                 {MODE_LABELS[m]}
               </button>

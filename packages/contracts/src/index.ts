@@ -189,3 +189,79 @@ export interface ProblemFilters {
   page?: number;
   page_size?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Reviews (Phase 3)
+
+export type ReviewOutcome = "again" | "hard" | "good" | "easy";
+export type ReviewHelpLevel = "none" | "hint" | "editorial";
+export type ReviewSessionStatus = "pending" | "completed";
+
+export interface ProblemRef {
+  id: string;
+  name: string;
+  contest_id: number | null;
+  problem_index: string | null;
+  rating: number | null;
+  tags: string[];
+  url: string | null;
+}
+
+export interface ReviewSession {
+  id: string;
+  problem_id: string;
+  status: ReviewSessionStatus;
+  started_at: string;
+  completed_at: string | null;
+  outcome: ReviewOutcome | null;
+  independent: boolean | null;
+  help_level: ReviewHelpLevel | null;
+  duration_seconds: number | null;
+  notes: string | null;
+}
+
+export interface MemoryStateView {
+  due_at: string;
+  last_review_at: string | null;
+  stability: number | null;
+  difficulty: number | null;
+  repetitions: number;
+  lapses: number;
+  scheduler_version: string;
+}
+
+export interface StartReviewRequest {
+  problem_id: string;
+}
+
+export interface ReviewSessionResponse {
+  session: ReviewSession;
+  problem: ProblemRef;
+  memory: MemoryStateView | null;
+}
+
+export interface CompleteReviewRequest {
+  outcome: ReviewOutcome;
+  independent?: boolean | null;
+  help_level?: ReviewHelpLevel | null;
+  duration_seconds?: number | null;
+  notes?: string | null;
+}
+
+export interface CompleteReviewResponse {
+  session: ReviewSession;
+  problem: ProblemRef;
+  memory: MemoryStateView;
+}
+
+export interface ReviewDueItem {
+  problem: ProblemRef;
+  due_at: string;
+  last_review_at: string | null;
+  repetitions: number;
+  lapses: number;
+}
+
+export interface ReviewDueListResponse {
+  items: ReviewDueItem[];
+}
