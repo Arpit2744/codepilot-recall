@@ -70,8 +70,8 @@ Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
 | Web `eslint`                            | **PASS**                            |
 | Web `vitest` (31 tests incl. auth pages + session states) | **PASS**               |
 | Web `next build` (`/`, `/onboarding`, `/dashboard` static) | **PASS**           |
-| Playwright e2e (Chromium, 8 tests) + integrated auth Playwright (3 tests, live API) | **PASS** |
-| PostgreSQL 16 + Docker Compose smoke    | verified in CI: P1 40117225412, P2 40119818727, P3 40121991245, P4 40123762388 (`3a9e879`); Phase 5 run pending push |
+| Playwright e2e (Chromium, 8 tests) + integrated auth E2E in CI (live API + PostgreSQL) | **PASS** |
+| PostgreSQL 16 + Docker Compose smoke    | verified in CI: P1 40117225412, P2 40119818727, P3 40121991245, P4 40123762388, P5 40134570747 (`7597d6c`, all six jobs) |
 | Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live import is manual/Phase 6 |
 
 Timezone-boundary tests: submissions near UTC midnight land on the correct

@@ -123,7 +123,13 @@ rejected ✓; state survives restarts ✓; remote CI run closes the phase.
 **Exit**: queue matches stored scheduler state; failures never corrupt
 memory history.
 
-## PHASE 5 — Authentication & hardening ✅ (code complete; CI pending push)
+## PHASE 5 — Authentication & hardening ✅ (complete, remotely verified)
+
+CI run https://github.com/Arpit2744/codepilot-recall/actions/runs/40134570747
+passed all six jobs at commit `7597d6c` (2026-10-25): API tests on
+PostgreSQL 16, worker, web, Docker Compose smoke, **backup/restore
+rehearsal** (real pg_dump → pg_restore → integrity verification), and
+**integrated auth E2E** (real API + PostgreSQL + Playwright).
 
 - [x] Argon2id via pinned `argon2-cffi==25.1.0` (API introspected,
       benchmarked ~120ms at m=64MiB/t=2/p=4; parameters in Settings) —
@@ -170,13 +176,13 @@ memory history.
       worker 9/9 · ruff both · alembic 0005 upgrade/drift/downgrade clean ·
       eslint · tsc · vitest **31/31** · `next build` · standard Playwright
       8/8 · integrated auth Playwright **3/3** against a live API
-- [ ] GitHub Actions run for the Phase 5 commit (6 jobs incl.
-      backup-restore + e2e-auth) — pending push
+- [x] GitHub Actions run 40134570747 for `7597d6c`: all six jobs green,
+      including backup/restore rehearsal and integrated auth E2E
 
 **Exit criteria**: session auth replaces the dev header ✓ (no fallback
 anywhere); cross-user isolation green across endpoints ✓; rate limits and
-operational safeguards tested ✓; backup/restore rehearsed ✓ (CI job
-pending); remote CI run closes the phase. Not claimed: security audit,
+operational safeguards tested ✓; backup/restore rehearsed ✓ (verified in
+CI); remote CI run green ✓ — phase closed. Not claimed: security audit,
 email verification, password reset (documented as deferred).
 
 ## PHASE 6 — Beta release
