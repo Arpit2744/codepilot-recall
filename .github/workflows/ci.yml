@@ -145,8 +145,15 @@ jobs:
           ls -la /tmp/cpr_backup.dump
       - name: Restore into a fresh empty database
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE cpr_dst"
-          PGPASSWORD=postgres pg_restore -h localhost -U postgres -d cpr_dst --no-owner /tmp/cpr_backup.dump
+          set -o pipefail
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE cpr_dst" 2>&1 | tee /tmp/createdb.log || {
+            tail -c 600 /tmp/createdb.log | tr '\r\n' '  ' | xargs -I{} printf '::error title=createdb::%s\n' "{}"
+            exit 1
+          }
+          PGPASSWORD=postgres pg_restore -h localhost -U postgres -d cpr_dst --no-owner --verbose /tmp/cpr_backup.dump 2>&1 | tee /tmp/restore.log || {
+            tail -c 1200 /tmp/restore.log | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 800 | xargs -I{} printf '::error title=pg_restore::%s\n' "{}"
+            exit 1
+          }
       - name: Verify schema and row integrity in the restored database
         run: |
           export DATABASE_URL="$DST_URL"
