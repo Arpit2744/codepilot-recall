@@ -173,7 +173,9 @@ jobs:
       - name: Clean up throwaway data
         if: always()
         run: |
-          rm -f /tmp/cpr_backup.dump
+          # The dump was written by the root-user container; sudo is
+          # passwordless on hosted runners.
+          sudo rm -f /tmp/cpr_backup.dump
           docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
             psql -h 127.0.0.1 -U postgres -c "DROP DATABASE IF EXISTS cpr_dst" || true
 
