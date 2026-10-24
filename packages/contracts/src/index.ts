@@ -260,8 +260,34 @@ export interface ReviewDueItem {
   last_review_at: string | null;
   repetitions: number;
   lapses: number;
+  stability: number | null;
+  /** "due" = arrived (inside the 24h grace); "overdue" = past it. */
+  status: "due" | "overdue";
+  overdue_seconds: number;
+  /** Urgency ranking only (1=Critical ≥30d, 2=High ≥7d, 3=Overdue, 4=Due) — computed, never stored. */
+  priority_tier: number;
+  priority_reason: string;
+  /** FSRS MODEL ESTIMATE of recall probability; null when no valid history. */
+  retrievability: number | null;
+  risk: "high" | "elevated" | "low" | null;
+}
+
+export interface ReviewUpcomingItem {
+  problem: ProblemRef;
+  due_at: string;
+  last_review_at: string | null;
+  repetitions: number;
+  lapses: number;
+  stability: number | null;
+  status: "upcoming";
+  seconds_until_due: number;
+  priority_tier: null;
+  priority_reason: string;
+  retrievability: number | null;
+  risk: null;
 }
 
 export interface ReviewDueListResponse {
-  items: ReviewDueItem[];
+  mode: "due" | "upcoming";
+  items: ReviewDueItem[] | ReviewUpcomingItem[];
 }

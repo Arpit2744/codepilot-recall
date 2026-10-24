@@ -120,6 +120,23 @@ def card_view(state: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def retrievability(state: dict[str, Any] | None, *, at: datetime) -> float | None:
+    """FSRS-model estimated recall probability in [0, 1] at time `at`.
+
+    A MODEL ESTIMATE from the scheduler — not an observed fact, and no
+    guarantee of forgetting. Returns None when no valid history exists
+    (fresh/absent state). Pure query: never mutates the card or schedule.
+    Corrupt/unsupported state raises MemoryStateCorrupt (never silently
+    substituted with 0 or 1).
+    """
+    if state is None:
+        return None
+    scheduler, card = _restore_card(state)
+    if card.last_review is None:
+        return None  # no review history yet: nothing to estimate from
+    return scheduler.get_card_retrievability(card, at)
+
+
 def review_log_rating(state: dict[str, Any]) -> int | None:
     """Rating of the most recent applied review, if any (1=Again..4=Easy)."""
     log_dict = state.get("last_log") if isinstance(state, dict) else None

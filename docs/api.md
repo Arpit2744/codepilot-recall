@@ -33,9 +33,36 @@ Every error response uses one shape:
 | POST   | `/api/v1/reviews/sessions` | Start a review for a solved `problem_id`; 201 with session + problem + memory (null before the first review) |
 | GET    | `/api/v1/reviews/sessions/{id}` | Session status + problem + memory state |
 | POST   | `/api/v1/reviews/sessions/{id}/complete` | Record outcome; advances FSRS exactly once; 409 on repeat completion |
-| GET    | `/api/v1/reviews/due` | Problems with `due_at <= now` (oldest first) |
+| GET    | `/api/v1/reviews/due?mode=due\|upcoming&limit=` | Revision queue (see contract below) |
 | GET    | `/api/v1/reviews/history` | Completed reviews, newest first, paginated |
 | POST   | `/api/v1/dev/users` | DEV ONLY (non-production): bootstrap a dev user for the `X-User-Id` boundary |
+
+Revision queue contract (ADR-0007): `mode=due` (default) returns items with
+`due_at <= now`, urgency-ranked; `mode=upcoming` returns future items only,
+clearly typed — never mixed into due. Each due item carries:
+
+```json
+{
+  "problem": { "id": "…", "name": "Theatre Square", "url": "…", "…": "…" },
+  "due_at": "2026-09-20T08:00:00Z",
+  "status": "overdue",            // due | overdue (>=24h past due_at)
+  "overdue_seconds": 3024000,
+  "priority_tier": 1,             // 1 Critical >=30d, 2 High >=7d, 3 Overdue, 4 Due
+  "priority_reason": "Overdue by 35 days — Critical priority — estimated recall ≈ 42% (model estimate) — low estimated retrievability",
+  "retrievability": 0.42,         // FSRS MODEL ESTIMATE; null when no valid history
+  "risk": "high",                 // high <0.50, elevated <0.80, low >=0.80; null with the estimate
+  "stability": 4.2, "repetitions": 3, "lapses": 1, "last_review_at": "…"
+}
+```
+
+Ordering: tier → most overdue → lowest stability → canonical key (stable
+tiebreaker). Stored vs computed: `due_at`/`stability`/serialized FSRS state
+are stored facts; `status`, `overdue_seconds`, tiers, reasons,
+retrievability, and risk are computed on read and never persisted. The
+layer never mutates scheduler state. Corrupt serialized state: the item
+still appears with `retrievability: null` and an explicit
+"estimate unavailable (stored state unreadable)" note; completing reviews
+on corrupt state is refused (500, no reset — ADR-0006).
 
 Review outcome policy (ADR-0006): **Again** = forgot / needed substantial
 help; **Hard** = significant struggle or limited assistance; **Good** =

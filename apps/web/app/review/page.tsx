@@ -6,7 +6,27 @@ import type {
   CompleteReviewResponse,
   ReviewDueItem,
   ReviewSessionResponse,
+  ReviewUpcomingItem,
 } from "@codepilot/contracts";
+
+type QueueItem = ReviewDueItem | ReviewUpcomingItem;
+
+const STATUS_STYLES: Record<string, string> = {
+  overdue: "bg-amber-500/15 text-amber-300",
+  due: "bg-emerald-500/15 text-emerald-300",
+  upcoming: "bg-slate-500/15 text-slate-300",
+};
+
+const TIER_STYLES: Record<number, string> = {
+  1: "bg-rose-500/20 text-rose-300",
+  2: "bg-amber-500/20 text-amber-300",
+};
+
+const RISK_STYLES: Record<string, string> = {
+  high: "bg-rose-500/15 text-rose-300",
+  elevated: "bg-amber-500/15 text-amber-300",
+  low: "bg-emerald-500/15 text-emerald-300",
+};
 import { Button } from "@/components/ui/button";
 import { listDueReviews, startReview, completeReview, ApiError } from "@/lib/reviews";
 import { ensureDevUser } from "@/lib/dev-user";
@@ -27,7 +47,9 @@ type OutcomeKey = (typeof OUTCOMES)[number]["key"];
 
 export default function ReviewPage() {
   const [devUser, setDevUser] = useState<DevUserState>({ phase: "loading" });
-  const [dueItems, setDueItems] = useState<ReviewDueItem[] | null>(null);
+  const [queueItems, setQueueItems] = useState<QueueItem[] | null>(null);
+  const [queueMode, setQueueMode] = useState<"due" | "upcoming">("due");
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
   const [active, setActive] = useState<ReviewSessionResponse | null>(null);
   const [helpLevel, setHelpLevel] = useState<"none" | "hint" | "editorial">("none");
   const [submitting, setSubmitting] = useState<OutcomeKey | null>(null);
@@ -46,13 +68,18 @@ export default function ReviewPage() {
     };
   }, []);
 
-  const refreshDue = useCallback(async (userId: string) => {
-    try {
-      setDueItems((await listDueReviews(userId)).items);
-    } catch {
-      setDueItems(null);
-    }
-  }, []);
+  const refreshQueue = useCallback(
+    async (userId: string, mode: "due" | "upcoming") => {
+      try {
+        setQueueItems((await listDueReviews(userId, mode)).items);
+        return true;
+      } catch {
+        setQueueItems(null);
+        return false;
+      }
+    },
+    [],
+  );
 
   // Deep link support: /review?problem=<id> starts a review for one
   // solved problem (the dashboard table links here). Read via
@@ -68,9 +95,9 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (devUser.phase !== "ready") return;
-    const timer = setTimeout(() => refreshDue(devUser.userId), 0);
+    const timer = setTimeout(() => refreshQueue(devUser.userId, queueMode), 0);
     return () => clearTimeout(timer);
-  }, [devUser, refreshDue, result]); // refresh after each completed review
+  }, [devUser, queueMode, refreshQueue]);
 
   async function begin(userId: string, problemId: string) {
     setError(null);
@@ -96,6 +123,15 @@ export default function ReviewPage() {
       });
       setResult(response);
       setActive(null);
+      // Server-confirmed completion: refresh the queue immediately and
+      // report honestly if the refresh itself fails.
+      const refreshed = await refreshQueue(userId, "due");
+      setQueueMode("due");
+      setRefreshWarning(
+        refreshed
+          ? null
+          : "The review was recorded, but the queue could not be refreshed — the list below may be stale. Reload to see the latest schedule.",
+      );
     } catch (exc) {
       if (exc instanceof ApiError && exc.status === 409) {
         setConflict(true);
@@ -113,6 +149,7 @@ export default function ReviewPage() {
     setResult(null);
     setError(null);
     setConflict(false);
+    setRefreshWarning(null);
   }
 
   return (
@@ -232,6 +269,11 @@ export default function ReviewPage() {
             className="flex flex-col gap-4 rounded-xl border border-emerald-900/60 bg-emerald-950/30 p-6"
           >
             <h2 className="text-lg font-semibold text-emerald-200">Review recorded</h2>
+            {refreshWarning ? (
+              <p role="alert" className="rounded-lg border border-amber-900/60 bg-amber-950/30 p-3 text-sm text-amber-200">
+                {refreshWarning}
+              </p>
+            ) : null}
             <p className="text-sm text-slate-300">
               You rated{" "}
               <strong>{result.session.outcome}</strong>
@@ -265,32 +307,77 @@ export default function ReviewPage() {
             </div>
           </section>
         ) : (
-          <section aria-label="Due reviews" className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-            <h2 className="text-base font-semibold">Due for review</h2>
-            {dueItems === null ? (
+          <section aria-label="Review queue" className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">
+                {queueMode === "due" ? "Due for review" : "Upcoming reviews"}
+              </h2>
+              <div role="tablist" aria-label="Queue mode" className="flex gap-1 rounded-lg bg-slate-950/60 p-1">
+                {(["due", "upcoming"] as const).map((m) => (
+                  <button
+                    key={m}
+                    role="tab"
+                    aria-selected={queueMode === m}
+                    onClick={() => setQueueMode(m)}
+                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-indigo-400 ${
+                      queueMode === m ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {m === "due" ? "Due" : "Upcoming"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {queueItems === null ? (
               <p className="text-sm text-slate-400">
                 Could not load the review queue. Check the API is running.
               </p>
-            ) : dueItems.length === 0 ? (
+            ) : queueItems.length === 0 ? (
               <p className="text-sm text-slate-400">
-                Nothing due right now. Reviews you complete will schedule
-                themselves here — a Codeforces acceptance alone never creates a
-                review.
+                {queueMode === "due"
+                  ? "Nothing due right now. Reviews you complete will schedule themselves here — a Codeforces acceptance alone never creates a review."
+                  : "No upcoming reviews scheduled yet."}
               </p>
             ) : (
               <ul className="divide-y divide-slate-800">
-                {dueItems.map((item) => (
+                {queueItems.map((item) => (
                   <li key={item.problem.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-slate-100">
-                        {item.problem.contest_id
-                          ? `${item.problem.contest_id}${item.problem.problem_index} — ${item.problem.name}`
-                          : item.problem.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[item.status]}`}
+                        >
+                          {item.status === "overdue" ? "Overdue" : item.status === "due" ? "Due now" : "Upcoming"}
+                        </span>
+                        {item.priority_tier !== null && TIER_STYLES[item.priority_tier] ? (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TIER_STYLES[item.priority_tier]}`}
+                          >
+                            {item.priority_tier === 1 ? "Critical" : "High"} priority
+                          </span>
+                        ) : null}
+                        <p className="truncate text-sm text-slate-100">
+                          {item.problem.contest_id
+                            ? `${item.problem.contest_id}${item.problem.problem_index} — ${item.problem.name}`
+                            : item.problem.name}
+                        </p>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-400">{item.priority_reason}</p>
                       <p className="text-xs text-slate-500">
                         due {item.due_at.slice(0, 16).replace("T", " ")} UTC ·{" "}
                         {item.repetitions} review{item.repetitions === 1 ? "" : "s"}
                         {item.lapses > 0 ? ` · ${item.lapses} lapse${item.lapses === 1 ? "" : "s"}` : ""}
+                        {item.retrievability !== null && item.risk ? (
+                          <>
+                            {" · "}
+                            <span className={`rounded px-1 ${RISK_STYLES[item.risk]}`}>
+                              estimated recall ≈ {Math.round(item.retrievability * 100)}% ({item.risk} risk)
+                            </span>{" "}
+                            — model estimate
+                          </>
+                        ) : item.status !== "upcoming" && item.retrievability === null ? (
+                          " · recall estimate unavailable"
+                        ) : null}
                       </p>
                     </div>
                     <Button onClick={() => begin(devUser.userId, item.problem.id)}>

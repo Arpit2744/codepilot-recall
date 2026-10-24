@@ -73,10 +73,39 @@ class DueItemOut(BaseModel):
     last_review_at: datetime | None
     repetitions: int
     lapses: int
+    stability: float | None
+    # "due" (arrived) or "overdue" (past the policy grace window).
+    status: Literal["due", "overdue"]
+    overdue_seconds: int
+    # 1=Critical (>=30d overdue) 2=High (>=7d) 3=Overdue 4=Due. Urgency
+    # ranking only — computed by the queue layer, never stored, never part
+    # of FSRS scheduling.
+    priority_tier: int
+    priority_reason: str
+    # FSRS MODEL ESTIMATE of recall probability, or null when no valid
+    # history exists. Distinct from observed recall (review outcomes).
+    retrievability: float | None
+    risk: Literal["high", "elevated", "low"] | None
+
+
+class UpcomingItemOut(BaseModel):
+    problem: ProblemRef
+    due_at: datetime
+    last_review_at: datetime | None
+    repetitions: int
+    lapses: int
+    stability: float | None
+    status: Literal["upcoming"]
+    seconds_until_due: int
+    priority_tier: None = None
+    priority_reason: str
+    retrievability: float | None = None
+    risk: None = None
 
 
 class DueListResponse(BaseModel):
-    items: list[DueItemOut]
+    mode: Literal["due", "upcoming"]
+    items: list[DueItemOut] | list[UpcomingItemOut]
 
 
 class HistoryItemOut(BaseModel):

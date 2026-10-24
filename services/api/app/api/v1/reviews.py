@@ -13,7 +13,6 @@ from app.repositories import reviews as repo
 from app.schemas.reviews import (
     CompleteReviewRequest,
     CompleteReviewResponse,
-    DueItemOut,
     DueListResponse,
     HistoryItemOut,
     HistoryResponse,
@@ -161,13 +160,55 @@ def list_due(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    mode: Annotated[str, Query(pattern="^(due|upcoming)$")] = "due",
 ):
-    from app.models.base import utcnow
+    """Revision queue. mode=due (default): due_at <= now, urgency-ranked.
+    mode=upcoming: future items only, clearly typed — never mixed into due.
 
-    items = repo.due_items(db, user_id=user_id, now=utcnow(), limit=limit)
-    return DueListResponse(
-        items=[DueItemOut(**item) for item in items],
+    Ranking and risk labels are computed by the queue layer from persisted
+    facts; FSRS due dates and serialized state are authoritative and never
+    rewritten here.
+    """
+    from app.integrations.fsrs import adapter
+    from app.models.base import utcnow
+    from app.services import queue as queue_service
+
+    now = utcnow()
+    rows = repo.queue_items(db, user_id=user_id, now=now, mode=mode, limit=limit)
+
+    enriched: list[dict] = []
+    for row in rows:
+        row = dict(row)
+        estimate_unavailable = False
+        try:
+            row["retrievability"] = adapter.retrievability(
+                row["scheduler_state"], at=now
+            )
+        except adapter.MemoryStateCorrupt:
+            # Read path: represent invalid data explicitly, never invent an
+            # estimate and never hide the item (its due date is still fact).
+            row["retrievability"] = None
+            estimate_unavailable = True
+        row.pop("scheduler_state", None)
+
+        if mode == "due":
+            classified = queue_service.classify_due(row, now=now)
+            if estimate_unavailable:
+                classified["priority_reason"] += (
+                    " — recall estimate unavailable (stored state unreadable)"
+                )
+            row.update(classified)
+            enriched.append(row)
+        else:
+            row.update(queue_service.classify_upcoming(row, now=now))
+            enriched.append(row)
+
+    ordered = (
+        queue_service.order_due_queue(enriched)
+        if mode == "due"
+        else queue_service.order_upcoming_queue(enriched)
     )
+    return DueListResponse(mode=mode, items=ordered)
 
 
 @router.get("/history", response_model=HistoryResponse)

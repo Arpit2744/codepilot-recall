@@ -102,15 +102,28 @@ def upsert_memory(
     return memory
 
 
-def due_items(
-    db: Session, *, user_id: uuid.UUID, now: datetime, limit: int = 50
+def queue_items(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    now: datetime,
+    mode: str,
+    limit: int = 50,
 ) -> Sequence[dict]:
-    """Scheduled problems due for review (due_at <= now), oldest due first."""
+    """Raw queue rows for the urgency layer.
+
+    mode="due": due_at <= now. mode="upcoming": due_at > now (soonest first).
+    Includes the serialized scheduler state so estimates can be computed
+    without touching stored rows; bounded by `limit`.
+    """
+    condition = (
+        MemoryState.due_at <= now if mode == "due" else MemoryState.due_at > now
+    )
     rows = db.execute(
         select(MemoryState, UserProblem, Problem)
         .join(UserProblem, MemoryState.user_problem_id == UserProblem.id)
         .join(Problem, UserProblem.problem_id == Problem.id)
-        .where(MemoryState.user_id == user_id, MemoryState.due_at <= now)
+        .where(MemoryState.user_id == user_id, condition)
         .order_by(MemoryState.due_at.asc())
         .limit(limit)
     ).all()
@@ -125,10 +138,13 @@ def due_items(
                 "tags": problem.tags,
                 "url": problem.url,
             },
+            "canonical_key": problem.canonical_key,
             "due_at": memory.due_at,
             "last_review_at": memory.last_review_at,
             "repetitions": memory.repetitions,
             "lapses": memory.lapses,
+            "stability": memory.stability,
+            "scheduler_state": memory.scheduler_state,
         }
         for memory, _rollup, problem in rows
     ]

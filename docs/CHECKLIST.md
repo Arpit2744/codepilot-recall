@@ -85,7 +85,10 @@ suite with Phase 2 tests on PostgreSQL 16 and the Compose smoke.
 **Exit criteria**: aggregates match fixtures ✓ (endpoint tests); timezone
 boundary tests pass ✓. Remote CI run closes this phase.
 
-## PHASE 3 — FSRS ✅ (code complete; CI pending push)
+## PHASE 3 — FSRS ✅ (complete, remotely verified)
+
+CI run https://github.com/Arpit2744/codepilot-recall/actions/runs/40121991245
+passed all four jobs at commit `22ffefc` (2026-10-24).
 
 - [x] `fsrs==6.3.2` pinned (API introspected from the installed wheel);
       adapter in `app/integrations/fsrs` with fuzzing off, version-tagged
@@ -107,8 +110,7 @@ boundary tests pass ✓. Remote CI run closes this phase.
       duplicate completion, isolation, due/overdue, tz heatmap) · worker
       9/9 · ruff both · alembic 0004 upgrade/check/downgrade · eslint ·
       vitest 21/21 · `next build` · Playwright 8/8
-- [ ] GitHub Actions run for the Phase 3 commit (PostgreSQL + Compose
-      verification) — pending push
+- [x] GitHub Actions run 40121991245 for `22ffefc`: all four jobs green
 
 **Exit criteria**: outcomes update scheduler state ✓; duplicate completion
 rejected ✓; state survives restarts ✓; remote CI run closes the phase.

@@ -58,20 +58,20 @@ cd services/worker
 Frontend: `npm install` at the repo root (workspace install,
 Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
 
-## Verification status (updated 2026-10-24, Phase 3 complete locally)
+## Verification status (updated 2026-10-25, Phase 4 complete locally)
 
 | Check                                   | Result                              |
 | --------------------------------------- | ----------------------------------- |
-| API `pytest` (137 tests: + FSRS adapter, review lifecycle, review heatmap) | **PASS** |
+| API `pytest` (155 tests: + queue urgency layer, retrievability risk) | **PASS** |
 | API `ruff check`                        | **PASS**                            |
 | Worker `pytest` (9 tests)               | **PASS**                            |
 | Worker `ruff check`                     | **PASS**                            |
 | Alembic `0001→0003` upgrade → `check` → downgrade (SQLite) | **PASS** — no drift |
 | Web `eslint`                            | **PASS**                            |
-| Web `vitest` (21 tests incl. dashboard + review flows) | **PASS**                |
+| Web `vitest` (25 tests incl. queue labels + refresh flows) | **PASS**             |
 | Web `next build` (`/`, `/onboarding`, `/dashboard` static) | **PASS**           |
 | Playwright e2e (Chromium, 8 tests incl. review page) | **PASS**           |
-| PostgreSQL 16 + Docker Compose smoke    | verified in CI: Phase 1 run 40117225412 (`3a5f64e`), Phase 2 run 40119818727 (`9471173`); Phase 3 run pending push |
+| PostgreSQL 16 + Docker Compose smoke    | verified in CI: P1 40117225412, P2 40119818727, P3 40121991245 (`22ffefc`); Phase 4 run pending push |
 | Real Codeforces API calls               | **NOT RUN** in automated tests (fixtures only, by design); first live import is manual/Phase 6 |
 
 Timezone-boundary tests: submissions near UTC midnight land on the correct

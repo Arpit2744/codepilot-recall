@@ -36,8 +36,11 @@ export function completeReview(
   });
 }
 
-export function listDueReviews(userId: string): Promise<ReviewDueListResponse> {
-  return apiFetch<ReviewDueListResponse>("/api/v1/reviews/due", {
+export function listDueReviews(
+  userId: string,
+  mode: "due" | "upcoming" = "due",
+): Promise<ReviewDueListResponse> {
+  return apiFetch<ReviewDueListResponse>(`/api/v1/reviews/due?mode=${mode}`, {
     headers: devHeaders(userId),
   });
 }
