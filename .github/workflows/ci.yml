@@ -92,8 +92,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and start the full stack
-        run: docker compose up --build -d
+      - name: Build api image
+        run: docker build -f infra/docker/api.Dockerfile .
+      - name: Build worker image
+        run: docker build -f infra/docker/worker.Dockerfile .
+      - name: Build web image
+        run: docker build -f infra/docker/web.Dockerfile .
+      - name: Start the stack
+        run: docker compose up -d
       - name: Wait for API readiness (PostgreSQL + Alembic migrations)
         run: |
           for i in $(seq 1 30); do
