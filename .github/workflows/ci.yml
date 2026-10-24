@@ -116,13 +116,6 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: services/api/requirements.lock
-      # Client tools MUST match the server major version: a newer pg_dump
-      # emits SET transaction_timeout (PG17+), which PG16 rejects on restore.
-      - name: Install PostgreSQL 16 client tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-16
-          /usr/lib/postgresql/16/bin/pg_dump --version
       - name: Install API package
         run: python -m pip install -e .
       - name: Migrate the source database
@@ -146,18 +139,27 @@ jobs:
             tail -c 800 /tmp/verify_seed.log | tr '\r\n' '  ' | tail -c 600 | xargs -I{} printf '::error title=verify-seed::%s\n' "{}"
             exit 1
           }
-      - name: Create backup (pg_dump, custom format, out of any artifact)
+      # pg_dump/pg_restore MUST match the server major version (a newer
+      # client emits SET transaction_timeout, which PG16 rejects on restore),
+      # so the tools run from the matching postgres:16-alpine image with
+      # --network host to reach the service container's published port.
+      - name: Create backup (pg_dump 16, custom format, out of any artifact)
         run: |
-          PGPASSWORD=postgres /usr/lib/postgresql/16/bin/pg_dump -h localhost -U postgres -Fc cpr_src > /tmp/cpr_backup.dump
+          docker run --rm --network host -v /tmp:/tmp -e PGPASSWORD=postgres \
+            postgres:16-alpine \
+            pg_dump -h 127.0.0.1 -U postgres -Fc cpr_src -f /tmp/cpr_backup.dump
           ls -la /tmp/cpr_backup.dump
       - name: Restore into a fresh empty database
         run: |
           set -o pipefail
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE cpr_dst" 2>&1 | tee /tmp/createdb.log || {
+          docker run --rm --network host postgres:16-alpine \
+            psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE cpr_dst" 2>&1 | tee /tmp/createdb.log || {
             tail -c 600 /tmp/createdb.log | tr '\r\n' '  ' | xargs -I{} printf '::error title=createdb::%s\n' "{}"
             exit 1
           }
-          PGPASSWORD=postgres /usr/lib/postgresql/16/bin/pg_restore -h localhost -U postgres -d cpr_dst --no-owner --verbose /tmp/cpr_backup.dump 2>&1 | tee /tmp/restore.log || {
+          docker run --rm --network host -v /tmp:/tmp -e PGPASSWORD=postgres \
+            postgres:16-alpine \
+            pg_restore -h 127.0.0.1 -U postgres -d cpr_dst --no-owner --verbose /tmp/cpr_backup.dump 2>&1 | tee /tmp/restore.log || {
             grep -E "error|already exists|must be owner" /tmp/restore.log | head -5 | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 800 | xargs -I{} printf '::error title=pg_restore-errors::%s\n' "{}"
             exit 1
           }
