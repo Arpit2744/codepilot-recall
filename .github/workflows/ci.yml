@@ -151,7 +151,7 @@ jobs:
             exit 1
           }
           PGPASSWORD=postgres pg_restore -h localhost -U postgres -d cpr_dst --no-owner --verbose /tmp/cpr_backup.dump 2>&1 | tee /tmp/restore.log || {
-            tail -c 1200 /tmp/restore.log | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 800 | xargs -I{} printf '::error title=pg_restore::%s\n' "{}"
+            grep -E "error|already exists|must be owner" /tmp/restore.log | head -5 | tr '\r\n' '  ' | sed 's/%/%25/g' | tail -c 800 | xargs -I{} printf '::error title=pg_restore-errors::%s\n' "{}"
             exit 1
           }
       - name: Verify schema and row integrity in the restored database
