@@ -20,6 +20,10 @@ dependencies = [
     # (~120ms at m=64MiB t=2 p=4 on the reference machine) and configurable
     # via Settings for CI/test runtime.
     "argon2-cffi==25.1.0",
+    # Celery client (Phase 6 fix): the API enqueues Codeforces sync tasks to
+    # the shared broker (app/services/sync/queue.py) and must match the
+    # worker's pinned version.
+    "celery==5.6.3",
 ]
 
 [project.optional-dependencies]

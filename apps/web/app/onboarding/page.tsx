@@ -164,11 +164,6 @@ export default function OnboardingPage() {
               <SolvedList problems={problems} />
             </>
           )}
-
-          <p className="text-xs text-slate-600">
-            Development mode: identity is a local dev user until real
-            authentication ships in Phase 5.
-          </p>
         </>
       ) : null}
     </main>

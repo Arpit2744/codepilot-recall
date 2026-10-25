@@ -116,6 +116,20 @@ test("API-down bootstrap shows the reachability banner with retry", async () => 
   expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
 });
 
+test("stale development-mode copy is gone (Phase 5 shipped real auth)", async () => {
+  stubFetch();
+  stubAuthSession();
+  setRoute("GET /codeforces/accounts", () => []);
+  setRoute("GET /sync-status", () => STATUS("pending"));
+
+  render(<OnboardingPage />);
+
+  const input = await screen.findByLabelText(/codeforces handle/i);
+  expect(input).toBeInTheDocument();
+  expect(screen.queryByText(/development mode/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/local dev user/i)).not.toBeInTheDocument();
+});
+
 test("failed sync surfaces the error summary", async () => {
   stubFetch();
   stubAuthSession();
