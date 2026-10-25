@@ -138,12 +138,15 @@ sessions, CSRF tokens, and the forwarded Origin against `CORS_ORIGINS`.
 ### Provider environment variables
 
 Render **API** service: `ENVIRONMENT=production`, `DATABASE_URL` (Neon pooled
-URL **pasted as-is**), `DIRECT_DATABASE_URL` (Neon direct URL, used by the
-start command's `alembic upgrade head`), `REDIS_URL` (Upstash `rediss://`),
+URL **pasted as-is**), `DIRECT_DATABASE_URL` (Neon direct URL — used by
+`scripts/start.sh` for migrations only; the API process keeps the runtime
+`DATABASE_URL`), `REDIS_URL` (Upstash `rediss://`),
 `CORS_ORIGINS` (the web origin), raised `RATE_LIMIT_*` (all browsers share
 one proxy IP; per-IP granularity requires a future trusted-proxy change),
-`BETA_ALLOWED_EMAILS` (invite gate; empty = open). Start command:
-`sh -c "DATABASE_URL=$DIRECT_DATABASE_URL alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"`.
+`BETA_ALLOWED_EMAILS` (invite gate; empty = open). Leave Render's
+**Docker Command** field EMPTY: the image CMD runs `scripts/start.sh`,
+which executes Alembic migrations first (a failed migration stops
+startup) and then execs Uvicorn on `${PORT:-8000}`.
 
 Render **web** service: `API_SERVER_URL` (API origin), and
 `NEXT_PUBLIC_API_BASE_URL` left empty/absent (must NOT be baked as a

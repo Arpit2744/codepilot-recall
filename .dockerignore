@@ -6,6 +6,7 @@
 !services/api/app/**
 !services/api/alembic/**
 !services/api/alembic.ini
+!services/api/scripts/**
 services/api/.venv/**
 services/api/.pytest_cache/**
 services/api/.ruff_cache/**
