@@ -6,6 +6,11 @@
 # apps/web/node_modules typically does not exist. The stages below copy the
 # root install and the workspace sources it links to — never a per-workspace
 # node_modules.
+#
+# NEXT_PUBLIC_API_BASE_URL defaults to EMPTY: browser requests use relative
+# /api/v1 paths through the same-origin proxy (route.ts), so cookies are
+# first-party. An explicit build arg (e.g. docker-compose passes
+# http://localhost:8000 for local development) overrides it.
 
 FROM node:24-alpine AS deps
 WORKDIR /build
@@ -20,7 +25,7 @@ COPY --from=deps /build/node_modules ./node_modules
 COPY package.json ./
 COPY packages/contracts ./packages/contracts
 COPY apps/web ./apps/web
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_BASE_URL=""
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN cd apps/web && npm run build
 

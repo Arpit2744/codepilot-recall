@@ -84,6 +84,17 @@ jobs:
         run: npm run web:test
       - name: Build (next build)
         run: npm run web:build
+      - name: Client bundle must not bake a localhost API origin
+        run: |
+          # Same-origin proxy contract: without an explicit build-time
+          # NEXT_PUBLIC_API_BASE_URL the client bundle resolves relative
+          # /api/v1 paths. A leaked localhost origin would make every
+          # visitor's browser call their own machine.
+          if grep -R "localhost:8000" apps/web/.next/static; then
+            echo "::error::client bundle contains a hardcoded localhost:8000 API origin"
+            exit 1
+          fi
+          echo "client bundle clean: relative /api/v1 paths only"
 
   backup-restore:
     # Phase 5: real backup/restore rehearsal on a disposable PostgreSQL.
