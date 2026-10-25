@@ -24,7 +24,9 @@ export function ApiStatus() {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch<HealthResponse>("/health")
+    // Same-origin proxy mapping: /api/v1/health → backend /health
+    // (see apps/web/app/api/v1/health/route.ts).
+    apiFetch<HealthResponse>("/api/v1/health")
       .then((health) => {
         if (cancelled) return;
         setStatus("ok");

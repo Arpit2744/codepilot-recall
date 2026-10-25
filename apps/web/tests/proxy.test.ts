@@ -220,6 +220,51 @@ describe("api proxy", () => {
     expect(body.error.code).toBe("api_timeout");
   });
 
+  test("health mapping: /api/v1/health forwards to backend /health", async () => {
+    upstream = new Response(
+      JSON.stringify({ status: "ok", service: "api", version: "0.1.0" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+    const mod = await import("../app/api/v1/health/route");
+
+    const response = await mod.GET(proxyRequest("/api/v1/health"));
+
+    expect(captured?.url).toBe("http://127.0.0.1:8000/health"); // exact mapping
+    expect(captured?.url).not.toContain("/api/v1/health");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "ok",
+      service: "api",
+      version: "0.1.0",
+    });
+  });
+
+  test("health mapping: upstream failure passes through honestly", async () => {
+    upstream = new Error("connect ECONNREFUSED");
+    vi.resetModules();
+    vi.stubEnv("PROXY_TIMEOUT_MS", "50");
+    vi.stubEnv("WAKE_RETRY_WINDOW_MS", "60");
+    vi.stubEnv("PROXY_RETRY_DELAY_MS", "5");
+    const mod = await import("../app/api/v1/health/route");
+
+    const response = await mod.GET(proxyRequest("/api/v1/health"));
+
+    expect(response.status).toBe(502);
+    const body = await response.json();
+    expect(body.error.code).toBe("api_unreachable");
+    vi.unstubAllEnvs();
+  });
+
+  test("health mapping: HEAD is supported (read-only)", async () => {
+    upstream = new Response(null, { status: 200 });
+    const mod = await import("../app/api/v1/health/route");
+
+    const response = await mod.HEAD(proxyRequest("/api/v1/health", { method: "HEAD" }));
+
+    expect(response.status).toBe(200);
+    expect(captured?.init?.method).toBe("HEAD");
+  });
+
   test("honors API_SERVER_URL when configured", async () => {
     vi.resetModules();
     vi.stubEnv("API_SERVER_URL", "https://api.example.com/");
