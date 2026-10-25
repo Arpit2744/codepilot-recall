@@ -13,20 +13,25 @@ START_SCRIPT = SERVICE_DIR / "scripts" / "start.sh"
 
 def _write_stubs(bin_dir: Path, alembic_exit: int) -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
-    # LF-only stubs; they run inside sh.
-    (bin_dir / "alembic").write_text(
+    # LF-only stubs; they run inside sh. chmod is REQUIRED on Linux, where
+    # sh resolves PATH commands via execve (Windows ignores the bit).
+    alembic = bin_dir / "alembic"
+    alembic.write_text(
         "#!/bin/sh\n"
         'printf \'alembic|%s\\n\' "$DATABASE_URL" >> "$STUB_LOG"\n'
         f"exit {alembic_exit}\n",
         encoding="utf-8",
         newline="\n",
     )
-    (bin_dir / "uvicorn").write_text(
+    alembic.chmod(0o755)
+    uvicorn = bin_dir / "uvicorn"
+    uvicorn.write_text(
         "#!/bin/sh\n"
         'printf \'uvicorn|%s|%s\\n\' "$*" "$DATABASE_URL" >> "$STUB_LOG"\n',
         encoding="utf-8",
         newline="\n",
     )
+    uvicorn.chmod(0o755)
 
 
 def _run_start(
