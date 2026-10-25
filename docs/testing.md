@@ -1,5 +1,12 @@
 # Testing Strategy
 
+As of commit `7e13a19` the automated suites are: API pytest **215 tests**,
+worker pytest **13**, web Vitest **56**, standard Playwright **8** specs and
+integrated auth Playwright **3** specs — all green in CI
+(run [40184329913](https://github.com/Arpit2744/codepilot-recall/actions/runs/40184329913)).
+What the suites prove vs what still requires production observation is
+summarised at the end of this document.
+
 ## Commands
 
 | Scope   | Command (from service dir)     | Covers                        |
@@ -42,3 +49,19 @@ Run Python tests inside each service's venv (see README quickstart).
   duplicate-completion rejection.
 - Phase 5: cross-user authorization tests, Docker Compose startup test,
   backup/restore rehearsal.
+
+
+## What the suites prove — and what they cannot
+
+Proven automatically: API behavior on real PostgreSQL 16 (the CI api job),
+auth/session/CSRF semantics, cross-user isolation, FSRS scheduling and
+queue behavior against deterministic fixtures, the backup/restore
+round-trip (CI `backup-restore` job), Next.js build and client-bundle
+hygiene, and the browser flows through the same-origin proxy against a
+live API (integrated auth E2E job).
+
+Not proven by the suites: long-lived production reliability of the
+scheduled sync windows, Codeforces API behavior outside recorded fixtures
+(the first live import was verified manually by the repository owner), and
+security properties beyond the tested ones — no professional audit has
+been performed.

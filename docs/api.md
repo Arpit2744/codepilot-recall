@@ -35,7 +35,6 @@ Every error response uses one shape:
 | POST   | `/api/v1/reviews/sessions/{id}/complete` | Record outcome; advances FSRS exactly once; 409 on repeat completion |
 | GET    | `/api/v1/reviews/due?mode=due\|upcoming&limit=` | Revision queue (see contract below) |
 | GET    | `/api/v1/reviews/history` | Completed reviews, newest first, paginated |
-| POST   | `/api/v1/dev/users` | DEV ONLY (non-production): bootstrap a dev user for the `X-User-Id` boundary |
 
 Revision queue contract (ADR-0007): `mode=due` (default) returns items with
 `due_at <= now`, urgency-ranked; `mode=upcoming` returns future items only,
@@ -114,25 +113,14 @@ Quota: `max_linked_accounts` (default 5) per user.
 {"status": "ok", "service": "api", "version": "0.1.0", "environment": "local"}
 ```
 
-## Planned endpoints
+## Not yet implemented
 
-**Auth (Phase 5):** `POST /auth/register`, `POST /auth/login`, `GET /me` — replaces the dev header.
-
-**Codeforces (Phase 1 additions later):** periodic reconciliation job type (`reconcile`)
-
-**Dashboard (Phase 2):** `GET /dashboard/summary`, `GET /dashboard/heatmap?from=YYYY-MM-DD&to=YYYY-MM-DD`
-
-**Problems (Phase 2):** `GET /problems/{problem_id}`, richer filters (rating, tag)
-
-**Reviews (Phases 3–4):**
-- `GET /reviews/due` — server-computed queue (due + overdue, urgency order)
-- `POST /reviews/sessions` — start a review session
-- `POST /reviews/sessions/{session_id}/complete` — record outcome (idempotent; rejects duplicate completion)
-- `GET /reviews/history`
-
-**Analytics (Phase 2+):** `GET /analytics/topics`, `GET /analytics/retention`
-
-**Settings (Phase 5):** `GET /settings`, `PATCH /settings`
+Deferred explicitly (not silently missing): email verification, password
+reset, per-user settings endpoints, topic/retention analytics endpoints,
+a periodic `reconcile` job type, single-problem deep links
+(`GET /problems/{problem_id}`), and a professional security audit. The
+`reconcile` value exists in the `sync_jobs` job-type model but no scheduler
+creates it yet; incremental sync covers the same need today.
 
 ## Rules
 

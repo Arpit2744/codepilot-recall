@@ -2,6 +2,17 @@
 
 Date: 2026-10-24 · Status: accepted
 
+> **Superseding note (2026-10-25):** in production the worker no longer
+> runs as an always-on process — sync executes in bounded GitHub Actions
+> windows (deployment reality recorded in
+> [deployment.md](../deployment.md) and
+> `.github/workflows/sync.yml`). The API-side enqueue-only design in this
+> ADR is unchanged. The development `X-User-Id` identity in decision 5 was
+> replaced by server-side sessions in
+> [ADR-0008](0008-auth-sessions-csrf.md); the fail-closed production rule
+> from that interim boundary survives as ADR-0008's "no valid session →
+> 401 in every environment" rule.
+
 ## Context
 
 Phase 1 adds Codeforces ingestion. Two forces shaped the design: the upstream

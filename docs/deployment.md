@@ -146,7 +146,10 @@ one proxy IP; per-IP granularity requires a future trusted-proxy change),
 `BETA_ALLOWED_EMAILS` (invite gate; empty = open). Leave Render's
 **Docker Command** field EMPTY: the image CMD runs `scripts/start.sh`,
 which executes Alembic migrations first (a failed migration stops
-startup) and then execs Uvicorn on `${PORT:-8000}`.
+startup) and then execs Uvicorn on `${PORT:-8000}`. (A custom Docker
+Command override mangles shell quoting and caused the one production
+startup failure on 2026-10-25 — exit 127, then a port-scan timeout. The
+override must stay empty.)
 
 Render **web** service: `API_SERVER_URL` (API origin), and
 `NEXT_PUBLIC_API_BASE_URL` left empty/absent (must NOT be baked as a

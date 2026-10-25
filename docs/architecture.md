@@ -1,34 +1,46 @@
 # Architecture
 
-CodePilot Recall is a **modular monolith with an independent background worker**
-(ADR-0001). One deployable API process, one worker (+ beat), one PostgreSQL
-database, one Redis — no microservices.
+CodePilot Recall is a **modular monolith with an independent background
+worker** (ADR-0001): one API codebase, one Celery worker codebase, one
+PostgreSQL database, one Redis — no microservices. Locally they run as
+Docker Compose services; the free-tier production deployment (Phase 6) runs
+the web and API as Render Free services, PostgreSQL as Neon Free, Redis as
+Upstash Free, and the worker as a *bounded GitHub Actions window* instead of
+an always-on process (see [deployment.md](deployment.md) and
+[.github/workflows/sync.yml](../.github/workflows/sync.yml)).
 
 ## System overview
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │                 Browser                      │
-                    │  Next.js 16 app (apps/web, dark-mode-first)  │
-                    └───────────────┬──────────────────────────────┘
-                                    │ HTTPS / JSON (REST, /api/v1)
-                    ┌───────────────▼──────────────────────────────┐
-                    │        FastAPI API (services/api)            │
-                    │  auth · dashboard · problems · reviews ·     │
-                    │  analytics · settings                        │
-                    │  app/integrations/{codeforces,fsrs}          │
-                    └──────┬───────────────────────────┬───────────┘
-                           │ SQLAlchemy 2 (psycopg3)   │ Celery broker/backend
-                  ┌────────▼─────────┐        ┌────────▼─────────┐
-                  │   PostgreSQL 16  │        │     Redis 7.2    │
-                  │  (source of      │        │  (job queue,     │
-                  │   truth, UTC)    │        │   rate limiting) │
-                  └────────▲─────────┘        └────────▲─────────┘
-                           │                           │
-                    ┌──────┴───────────────────────────┴───────────┐
-                    │  Celery worker + beat (services/worker)      │
-                    │  Codeforces sync jobs · FSRS scheduling      │
-                    └──────────────────────────────────────────────┘
+                 ┌───────────────────────────────────────────────┐
+                 │                  Browser                      │
+                 │   Next.js 16 app (apps/web, dark-mode-first)  │
+                 │   relative /api/v1/* → same-origin proxy      │
+                 └───────────────┬───────────────────────────────┘
+                                 │ HTTPS + session cookie + CSRF header
+                 ┌───────────────▼───────────────────────────────┐
+                 │  Next.js route handlers (apps/web/app/api/v1) │
+                 │  forward to API_SERVER_URL (server-only env)  │
+                 └───────────────┬───────────────────────────────┘
+                                 │ forwarded request + forwarded Origin
+                 ┌───────────────▼───────────────────────────────┐
+                 │        FastAPI API (services/api)             │
+                 │  auth · codeforces · dashboard · problems ·   │
+                 │  reviews · integrations/{codeforces,fsrs}     │
+                 └──────┬───────────────────────────┬────────────┘
+                        │ SQLAlchemy 2 (psycopg3,   │ Celery broker/backend
+                        │ Neon pooled + direct)     │ (TLS, Upstash)
+               ┌────────▼─────────┐      ┌──────────▼──────────┐
+               │  PostgreSQL 16   │      │      Redis          │
+               │  (Neon; source   │      │  (Upstash; queue,   │
+               │   of truth, UTC) │      │   rate limiting)    │
+               └────────▲─────────┘      └──────────▲──────────┘
+                        │                           │
+             ┌──────────┴───────────────────────────┴──────────┐
+             │  Celery worker (services/worker)                │
+             │  runs in bounded GitHub Actions windows         │
+             │  (.github/workflows/sync.yml, every ~4 h)       │
+             └──────────────────────┬──────────────────────────┘
                                     │ HTTPS (rate-limited)
                            ┌────────▼─────────┐
                            │  Codeforces API  │
@@ -41,10 +53,10 @@ database, one Redis — no microservices.
 
 | Component   | Path              | Responsibility                                        |
 | ----------- | ----------------- | ----------------------------------------------------- |
-| Web         | `apps/web`        | Next.js 16 App Router, TypeScript, Tailwind 4, Recharts |
+| Web         | `apps/web`        | Next.js 16 App Router, TypeScript, Tailwind 4, same-origin API proxy, custom CSS-grid heatmap |
 | Contracts   | `packages/contracts` | Type-only shared API shapes (mirrors Pydantic schemas) |
 | API         | `services/api`    | REST API, request handling, transactions, health       |
-| Worker      | `services/worker` | Celery tasks: Codeforces sync, scheduling              |
+| Worker      | `services/worker` | Celery tasks: Codeforces sync (in production, run in bounded GitHub Actions windows) |
 | Migrations  | `services/api/alembic` | All schema changes via Alembic revisions          |
 
 ## Key decisions

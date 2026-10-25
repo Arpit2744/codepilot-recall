@@ -74,12 +74,11 @@ solves moves `first_solved_at` earlier and the aggregates follow). Revision
   `repetitions`, `lapses`. Corrupt state refuses to load (ADR-0006) — never
   silently reset.
 
-## Planned schema by phase
+## Not yet in the schema
 
-| Phase | Table            | Purpose                                                        |
-| ----- | ---------------- | -------------------------------------------------------------- |
-| 3     | `memory_states`  | FSRS state per user_problem: difficulty, stability, retrievability, due_at, scheduler version |
-| 5     | `user_settings` / `notification_preferences` | per-user options            |
+`user_settings` / `notification_preferences` have no migration yet (planned
+for post-beta). Everything described above is implemented and covered by
+migrations `0001`–`0005`.
 
 ## Invariants (enforced from Phase 1 onwards)
 

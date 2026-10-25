@@ -185,7 +185,7 @@ operational safeguards tested ✓; backup/restore rehearsed ✓ (verified in
 CI); remote CI run green ✓ — phase closed. Not claimed: security audit,
 email verification, password reset (documented as deferred).
 
-## PHASE 6 — Beta release (in progress: zero-cost deployment)
+## PHASE 6 — Beta release ✅ (deployed & live-verified; beta ongoing)
 
 - [x] Same-origin API proxy (`apps/web/app/api/v1/[...path]/route.ts`) —
       cookies first-party, no cross-site cookie mechanics; proxy unit tests
@@ -203,15 +203,37 @@ email verification, password reset (documented as deferred).
 - [x] Proxy cold-start strategy: bounded wake-retry window (~90 s) for
       connection-phase failures on all methods; timeouts on mutations →
       honest 504 with no retry (no duplicate registrations); knobs via env
-- [ ] Deploy staging (Render Free ×2, Neon Free, Upstash Free)
-- [ ] Live end-to-end verification: register → link handle → real import
-      → scheduled drain → review → persistence across logout/login
-- [ ] Invite first 4–5 testers
+- [x] Deployed (2026-10-25, Render Free ×2 + Neon Free + Upstash Free):
+      API `/health/ready` verified by the owner; one startup incident
+      (Render Docker Command override mangled shell quoting) root-caused
+      from logs and fixed with `scripts/start.sh` + JSON-array CMD
+- [x] Real Codeforces import succeeded for the owner's account
+      (owner-verified in production); the enqueue failure that initially
+      blocked it (`No module named 'celery'` in the API image) was
+      root-caused and fixed by adding the pinned Celery client to the API
+      package (a0d62bf)
+- [x] Scheduled sync workflow completed successfully in production
+      (owner-verified) — pending jobs drain in the bounded Actions window
+- [x] First beta tester invited (owner action); beta gate limits
+      registration to allowlisted addresses
+- [x] Docs synchronized with the implementation and
+      [learning-guide.md](learning-guide.md) added (2026-10-25)
+
+**Remaining beta-phase work (honest):** multi-week observation of
+scheduled-sync reliability on the free tier; review-completion flow and
+second-user isolation verified by the owner so far only through local and
+CI tests, not yet exercised by the invited tester; no security audit; no
+email verification / password reset (deferred).
 
 ## PHASE 6 — Beta release (original criteria)
 
-- [ ] Deploy to accessible environment; validate real Codeforces sync;
-      document limitations
+- [x] Deploy to accessible environment (Render + Neon + Upstash, ₹0/month);
+      real Codeforces sync validated; limitations documented in
+      [deployment.md](deployment.md) and the verification tables in
+      [README](../README.md)
 
-**Exit**: real user connects a handle, sees history, completes a review, and
-finds the schedule persisted on return.
+**Exit**: a real user connects a handle, sees history, completes a review,
+and finds the schedule persisted on return. Import and sync are verified;
+review completion and cross-login persistence are tested in CI but should
+be exercised once by the invited tester before calling the beta fully
+proven.
