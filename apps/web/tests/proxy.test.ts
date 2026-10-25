@@ -15,6 +15,41 @@ async function handler(request: Request): Promise<Response> {
   return mod.GET(request);
 }
 
+/** Reload the route module with small deterministic retry knobs. */
+async function handlerWithRetries(): Promise<{
+  GET: (request: Request) => Promise<Response>;
+}> {
+  vi.resetModules();
+  vi.stubEnv("PROXY_TIMEOUT_MS", "50");
+  vi.stubEnv("WAKE_RETRY_WINDOW_MS", "400");
+  vi.stubEnv("PROXY_RETRY_DELAY_MS", "10");
+  return import("../app/api/v1/[...path]/route");
+}
+
+function connectionError(): Error {
+  return Object.assign(new Error("fetch failed"), { name: "TypeError" });
+}
+
+function timeoutError(): Error {
+  return Object.assign(new Error("timed out"), { name: "TimeoutError" });
+}
+
+let fetchCalls: number;
+
+function stubFailingFetch(sequence: Array<Error | Response>) {
+  fetchCalls = 0;
+  const queue = [...sequence];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      fetchCalls += 1;
+      const next = queue.shift();
+      if (next instanceof Error) throw next;
+      return next ?? new Response("{}", { status: 200 });
+    }),
+  );
+}
+
 function proxyRequest(
   path: string,
   init?: RequestInit & { origin?: string },
@@ -109,9 +144,15 @@ describe("api proxy", () => {
   });
 
   test("returns a 502 envelope when the API is unreachable — never fake data", async () => {
-    upstream = new Error("connect ECONNREFUSED");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw connectionError();
+      }),
+    );
+    const mod = await handlerWithRetries();
 
-    const response = await handler(proxyRequest("/api/v1/dashboard/summary"));
+    const response = await mod.GET(proxyRequest("/api/v1/dashboard/summary"));
 
     expect(response.status).toBe(502);
     const body = await response.json();
@@ -123,6 +164,60 @@ describe("api proxy", () => {
     const response = await handler(proxyRequest("/api/other"));
     expect(response.status).toBe(404);
     expect(captured).toBeNull();
+  });
+
+  test("cold start: connection failure retries POST (request never delivered)", async () => {
+    stubFailingFetch([connectionError(), connectionError(), new Response("{}", { status: 201 })]);
+    const mod = await handlerWithRetries();
+
+    const response = await mod.GET(
+      proxyRequest("/api/v1/codeforces/accounts", {
+        method: "POST",
+        body: JSON.stringify({ handle: "tourist" }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(fetchCalls).toBe(3); // retried safely: never delivered upstream
+  });
+
+  test("cold start exhausted: connection failures end in 502", async () => {
+    stubFailingFetch(Array.from({ length: 50 }, () => connectionError()));
+    const mod = await handlerWithRetries();
+
+    const response = await mod.GET(proxyRequest("/api/v1/dashboard/summary"));
+
+    expect(response.status).toBe(502);
+    const body = await response.json();
+    expect(body.error.code).toBe("api_unreachable");
+    expect(fetchCalls).toBeGreaterThan(1);
+  });
+
+  test("timeout on GET retries within the wake window", async () => {
+    stubFailingFetch([timeoutError(), new Response("{}", { status: 200 })]);
+    const mod = await handlerWithRetries();
+
+    const response = await mod.GET(proxyRequest("/api/v1/dashboard/summary"));
+
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toBe(2);
+  });
+
+  test("timeout on POST returns 504 without retry — no duplicate registration", async () => {
+    stubFailingFetch([timeoutError()]);
+    const mod = await handlerWithRetries();
+
+    const response = await mod.GET(
+      proxyRequest("/api/v1/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email: "a@b.c", password: "Passw0rd!" }),
+      }),
+    );
+
+    expect(response.status).toBe(504);
+    expect(fetchCalls).toBe(1); // delivered-or-unknown: never replayed
+    const body = await response.json();
+    expect(body.error.code).toBe("api_timeout");
   });
 
   test("honors API_SERVER_URL when configured", async () => {

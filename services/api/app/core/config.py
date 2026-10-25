@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from app.core.database_url import normalize_database_url
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -75,6 +77,14 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        # Neon issues postgresql:// URLs and requires TLS; the installed
+        # driver is psycopg 3. Local sqlite/postgres URLs pass through
+        # unchanged (see app/core/database_url.py).
+        return normalize_database_url(value)
 
     @field_validator("log_level", mode="before")
     @classmethod

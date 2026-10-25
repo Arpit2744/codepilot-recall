@@ -197,6 +197,12 @@ email verification, password reset (documented as deferred).
 - [x] `sync.yml`: bounded GH Actions drain window every ~4h + manual
       dispatch; concurrency-guarded; existing dispatcher/tasks/recovery
 - [x] UI no longer references localhost; unreachable states reworded
+- [x] Neon URL normalization (`app/core/database_url.py`, tested): scheme
+      → postgresql+psycopg, sslmode=require added only for *.neon.tech and
+      only when absent, all other parts preserved verbatim
+- [x] Proxy cold-start strategy: bounded wake-retry window (~90 s) for
+      connection-phase failures on all methods; timeouts on mutations →
+      honest 504 with no retry (no duplicate registrations); knobs via env
 - [ ] Deploy staging (Render Free ×2, Neon Free, Upstash Free)
 - [ ] Live end-to-end verification: register → link handle → real import
       → scheduled drain → review → persistence across logout/login

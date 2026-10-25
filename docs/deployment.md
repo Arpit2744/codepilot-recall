@@ -126,7 +126,11 @@ same DB job lifecycle, no always-on paid service.
 
 The browser only calls the Next.js origin (`/api/v1/...`); route handlers in
 `apps/web/app/api/v1/[...path]/route.ts` forward server-side to
-`API_SERVER_URL`. Session cookies are therefore first-party (HttpOnly,
+`API_SERVER_URL`. Cold starts are handled: connection failures (request
+never delivered) are retried for up to ~90 s across all methods — this is
+what wakes a sleeping Render service safely, even for registrations; a
+timeout on a mutation returns an honest 504 immediately so a delivered
+request is never replayed into a duplicate (GET/HEAD may retry). Session cookies are therefore first-party (HttpOnly,
 SameSite=Lax, `__Host-` prefix in production), and FastAPI still validates
 sessions, CSRF tokens, and the forwarded Origin against `CORS_ORIGINS`.
 `NEXT_PUBLIC_API_BASE_URL` must stay EMPTY in deployment.
@@ -134,8 +138,8 @@ sessions, CSRF tokens, and the forwarded Origin against `CORS_ORIGINS`.
 ### Provider environment variables
 
 Render **API** service: `ENVIRONMENT=production`, `DATABASE_URL` (Neon pooled
-+ `?sslmode=require`), `DIRECT_DATABASE_URL` (Neon direct, used by the start
-command's `alembic upgrade head`), `REDIS_URL` (Upstash `rediss://`),
+URL **pasted as-is**), `DIRECT_DATABASE_URL` (Neon direct URL, used by the
+start command's `alembic upgrade head`), `REDIS_URL` (Upstash `rediss://`),
 `CORS_ORIGINS` (the web origin), raised `RATE_LIMIT_*` (all browsers share
 one proxy IP; per-IP granularity requires a future trusted-proxy change),
 `BETA_ALLOWED_EMAILS` (invite gate; empty = open). Start command:
@@ -156,3 +160,16 @@ dispatch due syncs (replaces beat) → bounded 12-minute `celery worker
 --pool=solo`. Interruption is safe: acks-late requeues unfinished tasks.
 UI-triggered syncs execute at the next window; scheduled runs can also be
 delayed by GitHub queueing — run the workflow manually when needed.
+
+### Connection-string compatibility (Neon)
+
+Neon issues `postgresql://` URLs; the installed driver is psycopg 3. Paste
+Neon's pooled and direct URLs **as-is** — `app/core/database_url.py`
+normalizes them at settings load (API startup, Alembic via settings, worker,
+GitHub Actions):
+
+- `postgres://` / `postgresql://` → `postgresql+psycopg://`
+- `*.neon.tech` hosts get `sslmode=require` appended **only when absent**;
+  existing query parameters (e.g. `options=project%3D...`) are preserved
+- credentials/host/database are never rebuilt; non-PostgreSQL URLs
+  (SQLite in tests) pass through untouched

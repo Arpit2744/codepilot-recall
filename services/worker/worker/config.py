@@ -3,6 +3,8 @@
 from functools import lru_cache
 from typing import Literal
 
+from app.core.database_url import normalize_database_url
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +18,11 @@ class WorkerSettings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
     database_url: str = "postgresql+psycopg://codepilot:codepilot@localhost:5432/codepilot"
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        return normalize_database_url(value)
 
     # Periodic Codeforces sync cadence (wired to Celery beat in Phase 1).
     cf_sync_interval_minutes: int = 30

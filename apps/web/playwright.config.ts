@@ -16,6 +16,14 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      // These specs run WITHOUT a live API: the proxy must fail fast (its
+      // production wake-retry window would hold the unreachable banner for
+      // ~90s). Deployed/integrated runs keep the real window.
+      PROXY_TIMEOUT_MS: "50",
+      WAKE_RETRY_WINDOW_MS: "2000",
+      PROXY_RETRY_DELAY_MS: "100",
+    },
   },
   projects: [
     {
