@@ -18,10 +18,12 @@ test("onboarding page renders and reports an unreachable API", async ({ page }) 
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
-test("landing page links to onboarding", async ({ page }) => {
+test("landing page stays public when the API is unreachable", async ({ page }) => {
+  // No backend in these specs: session detection reports unreachable
+  // (distinct from anonymous) and the public feature anchor remains.
   await page.goto("/");
-  await expect(page.getByRole("link", { name: /connect your handle/i })).toHaveAttribute(
-    "href",
-    "/onboarding",
-  );
+  await expect(page.getByRole("link", { name: /how it works/i })).toBeVisible();
+  await expect(page.getByText(/session status unavailable/i)).toBeVisible({
+    timeout: 15_000,
+  });
 });

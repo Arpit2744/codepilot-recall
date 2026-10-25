@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ApiStatus } from "@/components/api-status";
+import { SessionActions } from "@/components/home/session-actions";
 
 const features = [
   {
@@ -30,31 +30,14 @@ export default function HomePage() {
           spaced-repetition model that adapts to how well you actually recall
           each problem.
         </p>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <a
             href="#features"
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             How it works
           </a>
-          <Link
-            href="/onboarding"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
-          >
-            Connect your handle
-          </Link>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
-          >
-            Open dashboard
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-slate-400 underline-offset-2 transition-colors hover:text-slate-200 hover:underline"
-          >
-            Log in
-          </Link>
+          <SessionActions />
         </div>
       </header>
 

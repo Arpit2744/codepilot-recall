@@ -17,10 +17,11 @@ test("dashboard reports unreachable API without fake data", async ({ page }) => 
   await expect(page.getByText("421")).toHaveCount(0);
 });
 
-test("landing page links to the dashboard", async ({ page }) => {
+test("landing page does not claim authenticated actions without a session", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("link", { name: /open dashboard/i })).toHaveAttribute(
-    "href",
-    "/dashboard",
-  );
+  await expect(page.getByRole("link", { name: /how it works/i })).toBeVisible();
+  await expect(page.getByText(/session status unavailable/i)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("link", { name: /open dashboard/i })).toHaveCount(0);
 });
