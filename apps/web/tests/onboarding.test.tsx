@@ -49,7 +49,8 @@ test("full flow: session bootstrap -> connect handle -> poll to success with sol
   await userEvent.click(screen.getByRole("button", { name: "Connect" }));
 
   await waitFor(() => {
-    expect(screen.getByText("@tourist")).toBeInTheDocument();
+    // The handle renders as a muted @ plus a mono handle span.
+    expect(screen.getByRole("heading", { name: /@tourist/ })).toBeInTheDocument();
   });
   expect(await screen.findByText("pending")).toBeInTheDocument();
 

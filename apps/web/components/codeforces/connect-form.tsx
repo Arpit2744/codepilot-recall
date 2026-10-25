@@ -36,7 +36,7 @@ export function ConnectForm({
       } else if (exc instanceof ApiError && exc.code === "validation_error") {
         setError("That handle doesn't look like a Codeforces handle.");
       } else {
-        setError("Could not reach the API. Is the backend running on port 8000?");
+        setError("Could not reach the API. It may be waking up — retry shortly.");
       }
     } finally {
       setSubmitting(false);
@@ -44,11 +44,9 @@ export function ConnectForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-md flex-col gap-3" noValidate>
-      <label htmlFor="cf-handle" className="text-sm font-medium text-slate-200">
-        Codeforces handle
-      </label>
-      <div className="flex gap-2">
+    <form onSubmit={submit} className="panel flex max-w-md flex-col gap-4 p-6" noValidate>
+      <label htmlFor="cf-handle" className="flex flex-col gap-1.5">
+        <span className="micro-label">Codeforces handle</span>
         <input
           id="cf-handle"
           name="handle"
@@ -59,17 +57,20 @@ export function ConnectForm({
           spellCheck={false}
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? "cf-handle-error" : undefined}
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+          className="field-input"
         />
+      </label>
+      <div className="flex gap-2">
         <Button type="submit" disabled={submitting || trimmed.length === 0}>
           {submitting ? "Linking…" : "Connect"}
         </Button>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs leading-relaxed text-slate-500">
         Only the public handle — we never ask for your Codeforces password.
+        Imports run through a queued worker about every 4 hours.
       </p>
       {error ? (
-        <p id="cf-handle-error" role="alert" className="text-sm text-rose-400">
+        <p id="cf-handle-error" role="alert" className="text-sm text-rose-300">
           {error}
         </p>
       ) : null}

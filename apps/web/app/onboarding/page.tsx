@@ -113,8 +113,8 @@ export default function OnboardingPage() {
       ) : null}
 
       {devUser.phase === "anon" ? (
-        <section className="flex flex-col items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-          <h2 className="text-lg font-semibold">Log in to connect a handle</h2>
+        <section className="panel flex flex-col items-start gap-3 p-6">
+          <h2 className="text-lg font-semibold tracking-tight">Log in to connect a handle</h2>
           <p className="text-sm text-slate-400">
             Create an account or log in to link your Codeforces handle.
           </p>

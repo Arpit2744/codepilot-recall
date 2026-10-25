@@ -61,11 +61,15 @@ export function Heatmap({
   return (
     <section
       aria-label="Activity heatmap"
-      className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-5"
+      className="panel flex flex-col gap-4 p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">Activity</h2>
-        <div role="tablist" aria-label="Activity mode" className="flex gap-1 rounded-lg bg-slate-950/60 p-1">
+        <h2 className="text-base font-semibold tracking-tight">Activity</h2>
+        <div
+          role="tablist"
+          aria-label="Activity mode"
+          className="inline-flex gap-0.5 rounded-lg border border-slate-800 bg-slate-950/70 p-1"
+        >
           {modes.map((m) => {
             const selected = mode === m;
             return (
@@ -74,8 +78,10 @@ export function Heatmap({
                 role="tab"
                 aria-selected={selected}
                 onClick={() => onModeChange(m)}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-indigo-400 ${
-                  selected ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-slate-200"
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                  selected
+                    ? "bg-indigo-500/90 text-white"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
                 }`}
               >
                 {MODE_LABELS[m]}
@@ -102,9 +108,12 @@ export function Heatmap({
           </p>
           <div className="overflow-x-auto" role="img" aria-hidden="true">
             <div className="min-w-max">
-              <div className="mb-1 flex gap-1">
+              <div aria-hidden className="mb-1.5 flex gap-1">
                 {monthLabels.map((label, i) => (
-                  <div key={i} className="w-3 text-[10px] text-slate-500">
+                  <div
+                    key={i}
+                    className="w-3 text-center text-[9px] font-medium uppercase tracking-wide text-slate-600"
+                  >
                     {label}
                   </div>
                 ))}
@@ -126,9 +135,9 @@ export function Heatmap({
                           <div
                             key={di}
                             title={day ? `${day.date}: ${day.count}` : undefined}
-                            className={`h-3 w-3 rounded-sm ${
-                              day ? intensity(day.count, max) : "bg-transparent"
-                            }`}
+                            className={`h-3 w-3 rounded-[3px] transition-colors ${
+                              day ? intensity(day.count, max) : "bg-slate-800/50"
+                            } ${day ? "hover:ring-1 hover:ring-slate-500" : ""}`}
                           />
                         );
                       })}
@@ -136,18 +145,18 @@ export function Heatmap({
                   ))}
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-1 text-[10px] text-slate-500">
+              <div className="mt-3 flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
                 <span>Less</span>
-                <span className="h-3 w-3 rounded-sm bg-slate-800/70" />
-                <span className="h-3 w-3 rounded-sm bg-indigo-900" />
-                <span className="h-3 w-3 rounded-sm bg-indigo-700" />
-                <span className="h-3 w-3 rounded-sm bg-indigo-500" />
-                <span className="h-3 w-3 rounded-sm bg-indigo-300" />
+                <span className="size-3 rounded-[3px] bg-slate-800/50 ring-1 ring-inset ring-slate-800" />
+                <span className="size-3 rounded-[3px] bg-indigo-900" />
+                <span className="size-3 rounded-[3px] bg-indigo-700" />
+                <span className="size-3 rounded-[3px] bg-indigo-500" />
+                <span className="size-3 rounded-[3px] bg-indigo-300" />
                 <span>More</span>
               </div>
             </div>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="border-t border-slate-800/60 pt-3 text-xs text-slate-500">
             Dates are local calendar days in {heatmap.timezone}.
           </p>
         </>

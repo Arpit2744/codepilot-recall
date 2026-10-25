@@ -11,25 +11,27 @@ import type {
 
 type QueueItem = ReviewDueItem | ReviewUpcomingItem;
 
-const STATUS_STYLES: Record<string, string> = {
-  overdue: "bg-amber-500/15 text-amber-300",
-  due: "bg-emerald-500/15 text-emerald-300",
-  upcoming: "bg-slate-500/15 text-slate-300",
-};
-
-const TIER_STYLES: Record<number, string> = {
-  1: "bg-rose-500/20 text-rose-300",
-  2: "bg-amber-500/20 text-amber-300",
-};
-
-const RISK_STYLES: Record<string, string> = {
-  high: "bg-rose-500/15 text-rose-300",
-  elevated: "bg-amber-500/15 text-amber-300",
-  low: "bg-emerald-500/15 text-emerald-300",
-};
 import { Button } from "@/components/ui/button";
+import { StatusBadge, type BadgeTone } from "@/components/ui/status-badge";
 import { listDueReviews, startReview, completeReview, ApiError } from "@/lib/reviews";
 import { bootstrapSession, type SessionState } from "@/lib/auth";
+
+const STATUS_TONES: Record<string, BadgeTone> = {
+  overdue: "warning",
+  due: "success",
+  upcoming: "neutral",
+};
+
+const TIER_TONES: Record<number, BadgeTone> = {
+  1: "danger",
+  2: "warning",
+};
+
+const RISK_TONES: Record<string, BadgeTone> = {
+  high: "danger",
+  elevated: "warning",
+  low: "success",
+};
 
 type SessionPageState =
   | { phase: "loading" }
@@ -210,18 +212,16 @@ export default function ReviewPage() {
         active ? (
           <section
             aria-label="Active review session"
-            className="flex flex-col gap-5 rounded-xl border border-slate-800 bg-slate-900/50 p-6"
+            className="panel flex flex-col gap-5 p-6"
           >
             <div>
-              <p className="text-xs uppercase tracking-wide text-slate-500">
-                Attempt this problem honestly, then rate your recall
-              </p>
-              <h2 className="mt-1 text-xl font-semibold">
+              <p className="micro-label">Attempt this problem honestly, then rate your recall</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">
                 {active.problem.contest_id
                   ? `${active.problem.contest_id}${active.problem.problem_index} — ${active.problem.name}`
                   : active.problem.name}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 font-mono text-sm text-slate-500">
                 Rating {active.problem.rating ?? "—"} ·{" "}
                 {active.problem.tags.slice(0, 4).join(" · ") || "no tags"}
               </p>
@@ -260,11 +260,17 @@ export default function ReviewPage() {
               </div>
             </fieldset>
 
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-4">
               {OUTCOMES.map((outcome) => (
                 <Button
                   key={outcome.key}
-                  variant={outcome.key === "good" ? "primary" : "secondary"}
+                  variant={
+                    outcome.key === "again"
+                      ? "danger"
+                      : outcome.key === "good"
+                        ? "primary"
+                        : "secondary"
+                  }
                   disabled={submitting !== null}
                   onClick={() => submit(active.session.id, outcome.key)}
                 >
@@ -298,7 +304,9 @@ export default function ReviewPage() {
             </p>
             <p className="text-sm text-slate-300">
               Next review scheduled for{" "}
-              <strong>{result.memory.due_at.slice(0, 16).replace("T", " ")} UTC</strong>{" "}
+              <strong className="font-mono text-slate-100">
+                {result.memory.due_at.slice(0, 16).replace("T", " ")} UTC
+              </strong>{" "}
               (model estimate — FSRS {result.memory.scheduler_version}).
             </p>
             <div className="flex gap-2">
@@ -358,38 +366,47 @@ export default function ReviewPage() {
             ) : (
               <ul className="divide-y divide-slate-800">
                 {queueItems.map((item) => (
-                  <li key={item.problem.id} className="flex items-center justify-between gap-3 py-2">
+                  <li
+                    key={item.problem.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-slate-900/40"
+                  >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[item.status]}`}
+                        <StatusBadge
+                          tone={STATUS_TONES[item.status]}
+                          className="text-[10px] font-semibold uppercase tracking-wide"
                         >
-                          {item.status === "overdue" ? "Overdue" : item.status === "due" ? "Due now" : "Upcoming"}
-                        </span>
-                        {item.priority_tier !== null && TIER_STYLES[item.priority_tier] ? (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TIER_STYLES[item.priority_tier]}`}
+                          {item.status === "overdue"
+                            ? "Overdue"
+                            : item.status === "due"
+                              ? "Due now"
+                              : "Upcoming"}
+                        </StatusBadge>
+                        {item.priority_tier !== null && TIER_TONES[item.priority_tier] ? (
+                          <StatusBadge
+                            tone={TIER_TONES[item.priority_tier]}
+                            className="text-[10px] font-semibold uppercase tracking-wide"
                           >
                             {item.priority_tier === 1 ? "Critical" : "High"} priority
-                          </span>
+                          </StatusBadge>
                         ) : null}
-                        <p className="truncate text-sm text-slate-100">
+                        <p className="truncate text-sm font-medium text-slate-100">
                           {item.problem.contest_id
                             ? `${item.problem.contest_id}${item.problem.problem_index} — ${item.problem.name}`
                             : item.problem.name}
                         </p>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-400">{item.priority_reason}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="font-mono text-xs text-slate-500">
                         due {item.due_at.slice(0, 16).replace("T", " ")} UTC ·{" "}
                         {item.repetitions} review{item.repetitions === 1 ? "" : "s"}
                         {item.lapses > 0 ? ` · ${item.lapses} lapse${item.lapses === 1 ? "" : "s"}` : ""}
                         {item.retrievability !== null && item.risk ? (
                           <>
                             {" · "}
-                            <span className={`rounded px-1 ${RISK_STYLES[item.risk]}`}>
+                            <StatusBadge tone={RISK_TONES[item.risk]}>
                               estimated recall ≈ {Math.round(item.retrievability * 100)}% ({item.risk} risk)
-                            </span>{" "}
+                            </StatusBadge>{" "}
                             — model estimate
                           </>
                         ) : item.status !== "upcoming" && item.retrievability === null ? (
@@ -397,9 +414,7 @@ export default function ReviewPage() {
                         ) : null}
                       </p>
                     </div>
-                    <Button onClick={() => begin(item.problem.id)}>
-                      Start review
-                    </Button>
+                    <Button onClick={() => begin(item.problem.id)}>Start review</Button>
                   </li>
                 ))}
               </ul>

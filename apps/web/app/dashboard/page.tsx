@@ -185,7 +185,7 @@ export default function DashboardPage() {
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none"
+              className="field-input w-auto py-1.5"
             >
               {timezoneOptions.map((tz) => (
                 <option key={tz} value={tz}>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
           </label>
           <Link
             href="/review"
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             Review queue
           </Link>
@@ -229,8 +229,8 @@ export default function DashboardPage() {
       ) : null}
 
       {devUser.phase === "anon" ? (
-        <section className="flex flex-col items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-          <h2 className="text-lg font-semibold">Log in to see your dashboard</h2>
+        <section className="panel flex flex-col items-start gap-3 p-6">
+          <h2 className="text-lg font-semibold tracking-tight">Log in to see your dashboard</h2>
           <p className="text-sm text-slate-400">
             Your activity, heatmap, and reviews are tied to your account.
           </p>

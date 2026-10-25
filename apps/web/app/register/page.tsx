@@ -52,9 +52,9 @@ export default function RegisterPage() {
         <h1 className="text-3xl font-bold tracking-tight">Create your account</h1>
       </header>
 
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Email
+      <form onSubmit={submit} className="panel flex flex-col gap-5 p-6 sm:p-8" noValidate>
+        <label className="flex flex-col gap-1.5">
+          <span className="micro-label">Email</span>
           <input
             type="email"
             name="email"
@@ -62,22 +62,22 @@ export default function RegisterPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-indigo-400 focus:outline-none"
+            className="field-input"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Display name <span className="text-slate-500">(optional)</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="micro-label">Display name</span>
           <input
             type="text"
             name="displayName"
             autoComplete="nickname"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-indigo-400 focus:outline-none"
+            className="field-input"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Password
+        <label className="flex flex-col gap-1.5">
+          <span className="micro-label">Password</span>
           <input
             type="password"
             name="password"
@@ -85,7 +85,7 @@ export default function RegisterPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-indigo-400 focus:outline-none"
+            className="field-input"
           />
           <span className="text-xs text-slate-500">
             At least 8 characters, with a letter and a digit.
