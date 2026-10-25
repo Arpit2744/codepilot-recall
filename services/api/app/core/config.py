@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # Fail closed for auth endpoints when the shared Redis limiter is down
     # (never silently degrade to per-process limits in production).
     rate_limit_fail_closed: bool = True
+    # Beta invitation gate (Phase 6): when NON-EMPTY, only these normalized
+    # email addresses may register. Empty list = open registration. This is
+    # server-enforced access control, never an obscure URL.
+    beta_allowed_emails: Annotated[list[str], NoDecode] = []
 
     # Codeforces integration knobs (used from Phase 1 onwards).
     cf_api_base_url: str = "https://codeforces.com/api"
@@ -65,11 +69,11 @@ class Settings(BaseSettings):
     cf_historical_max_pages: int = 200
     cf_incremental_max_pages: int = 20
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "beta_allowed_emails", mode="before")
     @classmethod
-    def _split_csv_origins(cls, value: object) -> object:
+    def _split_csv_lists(cls, value: object) -> object:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     @field_validator("log_level", mode="before")

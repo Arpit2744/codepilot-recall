@@ -9,6 +9,7 @@ pending jobs once the broker returns, so nothing is lost.
 import logging
 
 from app.core.config import get_settings
+from app.core.redis_tls import redis_ssl_options
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,9 @@ def enqueue_sync(account_id, job_id) -> bool:
         from celery import Celery  # imported lazily: optional for API-only tests
 
         app = Celery(__name__, broker=settings.redis_url)
+        ssl_options = redis_ssl_options(settings.redis_url)
+        if ssl_options is not None:
+            app.conf.broker_use_ssl = ssl_options
         app.send_task(SYNC_TASK_NAME, args=[str(account_id), str(job_id)])
         return True
     except Exception as exc:  # noqa: BLE001 — broker outages must not fail requests

@@ -195,8 +195,8 @@ export default function ReviewPage() {
       {devUser.phase === "unreachable" ? (
         <section role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-900/60 bg-rose-950/40 p-5">
           <p className="text-sm text-rose-200">
-            Could not reach the API. Start the backend (uvicorn on port 8000) and
-            reload this page.
+            Could not reach the API. The API service may be waking up —
+            wait a few seconds and retry.
           </p>
           <div>
             <Button variant="secondary" onClick={() => window.location.reload()}>
@@ -347,7 +347,7 @@ export default function ReviewPage() {
             </div>
             {queueItems === null ? (
               <p className="text-sm text-slate-400">
-                Could not load the review queue. Check the API is running.
+                Could not load the review queue. The API may be waking up — retry shortly.
               </p>
             ) : queueItems.length === 0 ? (
               <p className="text-sm text-slate-400">

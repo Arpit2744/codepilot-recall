@@ -56,7 +56,9 @@ cd services/worker
 ```
 
 Frontend: `npm install` at the repo root (workspace install,
-Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`.
+Node **>= 22.22.2**, 24 recommended), then `npm run web:dev`. The web app
+proxies `/api/v1/*` to the API (`API_SERVER_URL`, default
+`http://127.0.0.1:8000`) — no CORS setup needed locally.
 
 ## Verification status (updated 2026-10-25, Phase 5 complete locally)
 

@@ -1,7 +1,12 @@
 import type { ApiErrorResponse } from "@codepilot/contracts";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+/**
+ * Browser base URL for API calls. Empty by default: requests use relative
+ * `/api/v1/...` paths served by the same-origin Next.js proxy (Phase 6),
+ * so session cookies are first-party. Only set this for non-proxy local
+ * development against a cross-origin API.
+ */
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(

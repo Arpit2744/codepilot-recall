@@ -113,3 +113,46 @@ docker compose exec postgres pg_dump -U codepilot -Fc codepilot > backup.dump
 docker compose exec -T postgres psql -U codepilot -c 'CREATE DATABASE codepilot_restore'
 cat backup.dump | docker compose exec -T postgres pg_restore -U codepilot -d codepilot_restore --no-owner
 ```
+
+
+## Phase 6: zero-cost beta deployment (Render + Neon + Upstash + GitHub Actions)
+
+Architecture: FastAPI and Next.js run as Render Free web services; Neon Free
+PostgreSQL; Upstash Free Redis; the Celery worker/beat runs as a bounded
+GitHub Actions window every ~4 hours (`sync.yml`) — same broker, same tasks,
+same DB job lifecycle, no always-on paid service.
+
+### Same-origin API proxy
+
+The browser only calls the Next.js origin (`/api/v1/...`); route handlers in
+`apps/web/app/api/v1/[...path]/route.ts` forward server-side to
+`API_SERVER_URL`. Session cookies are therefore first-party (HttpOnly,
+SameSite=Lax, `__Host-` prefix in production), and FastAPI still validates
+sessions, CSRF tokens, and the forwarded Origin against `CORS_ORIGINS`.
+`NEXT_PUBLIC_API_BASE_URL` must stay EMPTY in deployment.
+
+### Provider environment variables
+
+Render **API** service: `ENVIRONMENT=production`, `DATABASE_URL` (Neon pooled
++ `?sslmode=require`), `DIRECT_DATABASE_URL` (Neon direct, used by the start
+command's `alembic upgrade head`), `REDIS_URL` (Upstash `rediss://`),
+`CORS_ORIGINS` (the web origin), raised `RATE_LIMIT_*` (all browsers share
+one proxy IP; per-IP granularity requires a future trusted-proxy change),
+`BETA_ALLOWED_EMAILS` (invite gate; empty = open). Start command:
+`sh -c "DATABASE_URL=$DIRECT_DATABASE_URL alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"`.
+
+Render **web** service: `API_SERVER_URL` (API origin), and
+`NEXT_PUBLIC_API_BASE_URL` left empty/absent (must NOT be baked as a
+localhost or cross-origin URL).
+
+GitHub Actions secrets: `NEON_DIRECT_DATABASE_URL`,
+`NEON_POOLED_DATABASE_URL`, `UPSTASH_REDIS_URL`; variable
+`CF_SYNC_INTERVAL_MINUTES=240`.
+
+### Scheduled sync window
+
+`sync.yml` runs every ~4 hours (and on demand via "Run workflow"): migrate →
+dispatch due syncs (replaces beat) → bounded 12-minute `celery worker
+--pool=solo`. Interruption is safe: acks-late requeues unfinished tasks.
+UI-triggered syncs execute at the next window; scheduled runs can also be
+delayed by GitHub queueing — run the workflow manually when needed.

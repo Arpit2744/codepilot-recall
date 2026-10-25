@@ -1,5 +1,6 @@
 """Celery application instance shared by worker and beat processes."""
 
+from app.core.redis_tls import redis_ssl_options
 from celery import Celery
 from celery.schedules import schedule as celery_schedule
 
@@ -16,6 +17,13 @@ celery_app = Celery(
         "worker.tasks.codeforces",
     ],
 )
+
+# TLS-only providers (e.g. Upstash rediss://) require explicit SSL options
+# with certificate verification; plain redis:// stays unconfigured.
+_ssl = redis_ssl_options(settings.redis_url)
+if _ssl is not None:
+    celery_app.conf.broker_use_ssl = _ssl
+    celery_app.conf.redis_backend_use_ssl = _ssl
 
 celery_app.conf.update(
     task_serializer="json",

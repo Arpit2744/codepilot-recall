@@ -185,7 +185,24 @@ operational safeguards tested ✓; backup/restore rehearsed ✓ (verified in
 CI); remote CI run green ✓ — phase closed. Not claimed: security audit,
 email verification, password reset (documented as deferred).
 
-## PHASE 6 — Beta release
+## PHASE 6 — Beta release (in progress: zero-cost deployment)
+
+- [x] Same-origin API proxy (`apps/web/app/api/v1/[...path]/route.ts`) —
+      cookies first-party, no cross-site cookie mechanics; proxy unit tests
+- [x] TLS-aware Celery broker/backend for Upstash `rediss://`
+      (`app/core/redis_tls.py`; cert verification REQUIRED); local
+      redis:// unchanged — 4 tests
+- [x] Beta invitation gate: `BETA_ALLOWED_EMAILS` server-enforced
+      registration allowlist (generic rejection, no enumeration) — 5 tests
+- [x] `sync.yml`: bounded GH Actions drain window every ~4h + manual
+      dispatch; concurrency-guarded; existing dispatcher/tasks/recovery
+- [x] UI no longer references localhost; unreachable states reworded
+- [ ] Deploy staging (Render Free ×2, Neon Free, Upstash Free)
+- [ ] Live end-to-end verification: register → link handle → real import
+      → scheduled drain → review → persistence across logout/login
+- [ ] Invite first 4–5 testers
+
+## PHASE 6 — Beta release (original criteria)
 
 - [ ] Deploy to accessible environment; validate real Codeforces sync;
       document limitations

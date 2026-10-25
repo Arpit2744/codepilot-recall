@@ -17,6 +17,7 @@ from app.api.deps import (
     set_session_cookie,
     validate_browser_origin,
 )
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.rate_limit import RateLimitExceeded, RateLimitUnavailable, enforce
 from app.models import User, UserSession
@@ -75,6 +76,19 @@ def register(
         raise HTTPException(
             status_code=503, detail="Registration temporarily unavailable"
         ) from exc
+
+    settings = get_settings()
+    normalized = auth.normalize_email(payload.email)
+    # Allowlist entries are normalized the same way as the incoming address,
+    # so case/format variations in the dashboard value still match.
+    allowlisted = {auth.normalize_email(e) for e in settings.beta_allowed_emails}
+    if settings.beta_allowed_emails and normalized not in allowlisted:
+        auth.audit_event("registration.rejected_not_invited")
+        # Generic message: do not disclose whether any address is on the list.
+        raise HTTPException(
+            status_code=403,
+            detail="Registration is currently limited to invited beta testers.",
+        )
 
     try:
         user = auth.create_user(

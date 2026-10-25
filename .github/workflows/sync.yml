@@ -1,0 +1,75 @@
+name: Scheduled sync
+
+# Phase 6 zero-cost worker: the existing Celery worker drains the queue in
+# bounded windows here instead of running as a paid always-on service.
+# Everything about the pipeline is unchanged — same broker (Upstash), same
+# tasks, same DB job lifecycle, acks-late + retries. Jobs requested from
+# the UI execute at the next window (at most ~4h later); use "Run
+# workflow" for an immediate drain.
+
+on:
+  schedule:
+    # Every 4 hours at :07 (kept off the hour to spread provider load).
+    - cron: "7 */4 * * *"
+  workflow_dispatch:
+
+# Never run two drain windows concurrently; a late previous run queues the
+# next one instead of overlapping.
+concurrency:
+  group: codeforces-sync
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    name: Dispatch due syncs & drain queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            services/api/requirements.lock
+            services/worker/requirements.lock
+      - name: Install API package, then worker (order matters)
+        run: |
+          python -m pip install -e .
+          python -m pip install -e ../worker
+      - name: Migrate database (direct Neon URL)
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DIRECT_DATABASE_URL }}
+        run: python -m alembic upgrade head
+      - name: Dispatch due syncs (replaces beat)
+        env:
+          REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+          DATABASE_URL: ${{ secrets.NEON_POOLED_DATABASE_URL }}
+          CF_SYNC_INTERVAL_MINUTES: ${{ vars.CF_SYNC_INTERVAL_MINUTES || '240' }}
+          ENVIRONMENT: production
+        run: |
+          # Runs the existing dispatcher inline: recovers stale jobs,
+          # re-enqueues pending ones, schedules due accounts.
+          python -c "from worker.tasks.codeforces import dispatch_scheduled_syncs; print(dispatch_scheduled_syncs.run())"
+      - name: Drain queue (bounded Celery worker)
+        env:
+          REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+          DATABASE_URL: ${{ secrets.NEON_POOLED_DATABASE_URL }}
+          ENVIRONMENT: production
+        run: |
+          # Solo pool (no C-process fork on CI), warm shutdown on SIGTERM:
+          # acks-late requeues anything unfinished, so a killed run is safe
+          # and the next window retries it. Exit 124 = the bounded window
+          # elapsed, which is the normal path when the queue is drained or
+          # the window ends first.
+          timeout 12m python -m celery -A worker.celery_app worker \
+            --pool=solo --loglevel=info \
+            --without-gossip --without-mingle --without-heartbeat \
+            || code=$?; [ "${code:-0}" -eq 124 ] || exit "${code:-0}"
+          echo "drain window complete"
+      - name: Summary
+        if: always()
+        run: echo "Sync window finished at $(date -u +%FT%TZ)"

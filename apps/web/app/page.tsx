@@ -75,13 +75,7 @@ export default function HomePage() {
       </section>
 
       <footer className="mt-auto border-t border-slate-800 pt-6 text-sm text-slate-500">
-        CodePilot Recall · not affiliated with Codeforces · API:{" "}
-        <a
-          className="underline hover:text-slate-300"
-          href="http://localhost:8000/docs"
-        >
-          docs
-        </a>
+        CodePilot Recall · not affiliated with Codeforces
       </footer>
     </main>
   );
