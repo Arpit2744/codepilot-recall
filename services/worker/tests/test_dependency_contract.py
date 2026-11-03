@@ -1,7 +1,7 @@
 """Dependency contract checks for worker runtime."""
 
-from pathlib import Path
 import tomllib
+from pathlib import Path
 
 
 def test_worker_declares_packaging_for_celery_redis_transport():
